@@ -58,8 +58,8 @@
 5. **Plugin UX** — side panel (link state, RSN, rank, points, next-rank progress, active
    SOTW/BOTW + top 5, recent activity, sync status); in-game chat feedback; durable batched
    outbox; progress sync on clog/CA open, varp changes, login. Published to Plugin Hub.
-6. **Website** — "RuneLite Plugin" area (tokens, linked accounts, progress sources, own ledger);
-   staff ledger view for disputes.
+6. **Website** — "RuneLite Plugin" area (tokens, linked accounts, progress sources); staff
+   ledger view for disputes. Members see plugin effects through existing feeds, not the ledger.
 
 ## Milestones
 
@@ -132,6 +132,11 @@
 - [ ] Plugin Hub submission
 
 ## Open questions / decisions
+- **The ledger is not a member-facing store** (user, 2026-09-24). It exists for event
+  arbitration only (staff pane + rule evaluator). Member-visible effects flow through existing
+  feeds: recent clogs (reads `player_acquired_items`, filled by progress sync) and accomplishments
+  (`syncPlayerAccomplishments` runs after each plugin progress sync). Those feeds already collapse
+  first-sync bursts on read — don't add write-side dating tricks. Check existing primitives first.
 - **API versioning (user, 2026-09-24):** plugin routes are `/api/plugin/v1/*`, token-only
   (middleware refuses `/api/plugin/**` without a bearer; no route takes both session and token).
   `X-Plugin-Version` required; server `minimumPluginVersion` = 1.0.0 → older gets 426 and the
