@@ -8,7 +8,7 @@
   [`docs/VALIDATION.md`](VALIDATION.md). Fix whatever it turns up, then push + PRs + Plugin Hub.
 - **Next step:** read the user's results against docs/VALIDATION.md; fix failures; then the
   "Needs you" list there (license confirm, push/PRs, prod config, webhook secret, Plugin Hub).
-- Backend: branch `mm/plugin-foundations`, 18 commits on origin/main (M1–M6, versioning,
+- Backend: branch `mm/plugin-foundations`, 14 commits on origin/main (M1–M6, versioning,
   accomplishments wiring). Unpushed. in worktree
   `~/irons-grotto-1/.claude/worktrees/plugin-api`. Not pushed.
 - Plugin: this repo, branch `mm/plugin-foundations`.
