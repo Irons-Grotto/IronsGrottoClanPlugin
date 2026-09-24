@@ -211,7 +211,8 @@ public class GrottoPanel extends PluginPanel
 				{
 					for (ClanEventStatus.Standing standing : standings)
 					{
-						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(), NUMBERS.format(standing.getGained()));
+						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
+							NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
 						if (standing.getPosition() == 1)
 						{
 							line.getComponent(0).setForeground(ACCENT);
@@ -434,6 +435,12 @@ public class GrottoPanel extends PluginPanel
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
 		button.addActionListener(e -> LinkBrowser.browse(url));
 		return button;
+	}
+
+	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */
+	static String gainUnit(@Nullable String eventType)
+	{
+		return "botw".equals(eventType) ? "kc" : "xp";
 	}
 
 	static String timeLeft(String verb, @Nullable String iso)
