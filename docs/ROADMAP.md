@@ -132,6 +132,13 @@
 - [ ] Plugin Hub submission
 
 ## Open questions / decisions
+- **API versioning (user, 2026-09-24):** plugin routes are `/api/plugin/v1/*`, token-only
+  (middleware refuses `/api/plugin/**` without a bearer; no route takes both session and token).
+  `X-Plugin-Version` required; server `minimumPluginVersion` = 1.0.0 → older gets 426 and the
+  plugin pauses without losing data. Plugin is release **1.0.0**. v1 must stay backward compatible.
+- **Announce-on-merge** (user, 2026-09-24): `.github/workflows/announce-merge.yaml` ported from
+  irons-grotto-1, posts as "Irons Grotto Plugin Update". Needs repo secret
+  `DISCORD_RELEASE_WEBHOOK`. Every PR needs a `member-summary` block (see CLAUDE.md).
 - Ledger `type` is free text validated in code (no enum migration to add a type). Loot outside NPC/
   PvP (raids, clues, Barrows…) needs RuneLite's Loot Tracker plugin enabled. Clog slots need the
   in-game "new collection log item" chat notification on. KC from chat now; varp-based KC is M4.

@@ -1,0 +1,96 @@
+name: Announce merge
+
+# Posts a short, member-facing note to the clan Discord whenever a pull request
+# lands on main, so members can see the RuneLite plugin is actively being
+# worked on. The same process as the website's (irons-grotto-1), posting under
+# its own name so members can tell a plugin update from a site update.
+#
+# The note is NOT generated here — it is written by the PR author inside the
+# member-summary block in the PR body (see "Announcing a change" in CLAUDE.md).
+# This workflow only extracts it and posts it. A PR with no block is skipped
+# with a warning rather than announced badly.
+#
+# `pull_request_target` is used instead of `pull_request` so the webhook secret
+# is available even when the PR came from a fork. That trigger is only unsafe
+# when a workflow checks out and executes the PR's code — this one does neither.
+# It reads two fields off the event payload and posts them. Do not add a
+# checkout step here.
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+# Nothing here needs to write to the repository.
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post the member summary to Discord
+        env:
+          # Every one of these is untrusted input from a pull request, so they
+          # are passed through the environment and quoted at the point of use.
+          # Interpolating ${{ }} directly into a run: block would let a crafted
+          # PR title or body execute shell commands on this runner.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK_URL:-}" ]; then
+            echo "::warning::DISCORD_RELEASE_WEBHOOK is not set — skipping the announcement."
+            exit 0
+          fi
+
+          # Pull out everything between the delimiters. Tolerates whitespace
+          # inside the comment markers and CRLF line endings from the API.
+          summary=$(
+            printf '%s\n' "$PR_BODY" \
+              | tr -d '\r' \
+              | awk '
+                  /<!--[[:space:]]*member-summary:start[[:space:]]*-->/ { grab = 1; next }
+                  /<!--[[:space:]]*member-summary:end[[:space:]]*-->/   { grab = 0 }
+                  grab
+                ' \
+              | sed '/^[[:space:]]*$/d'
+          )
+
+          if [ -z "$summary" ]; then
+            echo "::warning::PR #${PR_NUMBER} has no member-summary block, so nothing was announced. See 'Announcing a change' in CLAUDE.md."
+            exit 0
+          fi
+
+          echo "Announcing PR #${PR_NUMBER}:"
+          echo "$summary"
+
+          # jq builds the payload so quotes, newlines and backslashes in the
+          # summary can't break out of the JSON.
+          payload=$(
+            # No PR link and no PR number: this lands in a members' channel,
+            # where a GitHub URL is noise at best and an invitation to read a
+            # diff at worst. The summary is the whole message. `PR_NUMBER` is
+            # still used for the workflow's own logging above.
+            jq -n \
+              --arg description "$summary" \
+              '{
+                username: "Irons Grotto Plugin Update",
+                embeds: [{
+                  title: "Plugin update",
+                  description: $description,
+                  color: 3527322
+                }]
+              }'
+          )
+
+          curl --fail-with-body --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -X POST \
+            -d "$payload" \
+            "$WEBHOOK_URL"
+
+          echo "Posted."
