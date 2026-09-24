@@ -4,12 +4,12 @@
 > end of every session and whenever a checklist item completes.
 
 ## Current status / next step
-- **Milestone:** M6 Consumers & polish — in progress (M1–M5 done). User asked: build straight through
-  to feature complete, then deliver ONE validation checklist (docs/VALIDATION.md) naming the
-  account for each check.
-- **Next step:** M3 → M4 → M5 → M6, then docs/VALIDATION.md.
-- Backend: branch `mm/plugin-foundations` (M1: d67e150, 842b35f, b76bc1f, d445fa3; M2: 11ee20c,
-  e31c0a4; M3: 9e3d454; M4/M5: 489f3e1, f392f0a) in worktree
+- **Milestone:** Feature complete (M1–M6 built) — **awaiting user validation** via
+  [`docs/VALIDATION.md`](VALIDATION.md). Fix whatever it turns up, then push + PRs + Plugin Hub.
+- **Next step:** read the user's results against docs/VALIDATION.md; fix failures; then the
+  "Needs you" list there (license confirm, push/PRs, prod config, webhook secret, Plugin Hub).
+- Backend: branch `mm/plugin-foundations`, 18 commits on origin/main (M1–M6, versioning,
+  accomplishments wiring). Unpushed. in worktree
   `~/irons-grotto-1/.claude/worktrees/plugin-api`. Not pushed.
 - Plugin: this repo, branch `mm/plugin-foundations`.
 
@@ -20,11 +20,11 @@
   `postgres://grotto:grotto@localhost:5432/grotto` (Redis/Discord/Temple still the real ones —
   onboarding only asks Temple to track the account, no Discord posts). Certificates copied in.
 - `yarn dev` in the worktree → https://localhost:3000 (self-signed). Java won't trust that cert,
-  so a dev relay serves the plugin at **http://localhost:3001** (a small Node script kept in the
-  session scratchpad; recreate if needed: plain `http.createServer` piping to
-  `https.request({host:'localhost',port:3000,rejectUnauthorized:false})`).
-- Plugin: `./gradlew shadowJar` → `build/libs/irons-grotto-0.1.0-all.jar`, run with
-  `java -ea -jar build/libs/irons-grotto-0.1.0-all.jar --developer-mode`; set
+  so `node scripts/dev-relay.mjs` (this repo) serves the plugin at **http://localhost:3001**.
+- Worktree `.env.local` also has `DEV_LOCAL_UPLOADS=true` (screenshots on disk, served at
+  `/api/dev/uploads/...`); `DISCORD_DROPS_CHANNEL_ID` unset (no Discord posts locally).
+- Plugin: `./gradlew shadowJar` → `build/libs/irons-grotto-1.0.0-all.jar`, run with
+  `java -ea -jar build/libs/irons-grotto-1.0.0-all.jar --developer-mode`; set
   Irons Grotto → Advanced → Server URL = `http://localhost:3001`.
 - `DEV_WAIVE_JOIN_REQUIREMENTS=true` is set in the worktree `.env.local`: under `next dev` only,
   `/join` skips the total-level minimum and stores mains as ironman
@@ -127,9 +127,13 @@
 - [x] `/plugin` shows "Where your progress comes from" per account
 
 ### M6 Consumers & polish
-- [ ] Staff ledger view
-- [ ] Bingo consumes ledger query layer
-- [ ] Plugin Hub submission
+- [x] Staff ledger view: `/admin` → "Plugin ledger" (search with proof/flags + rule tester)
+- [x] Consumer layer for bingo: `lib/ledger/ledger-rules.ts` — JSON rules (`drop`, `boss_drop`,
+  `kills`, `collection_log`, `pet`) → per-player progress + evidence. Bingo itself not built yet.
+- [x] API versioning `/api/plugin/v1` + `X-Plugin-Version` (426 below minimum); plugin 1.0.0
+- [x] Accomplishments synced after plugin progress (feeds handle bursts on read)
+- [x] Announce-on-merge workflow + CLAUDE.md; BSD-2 LICENSE (user to confirm); README
+- [ ] Plugin Hub submission (user action; see VALIDATION.md "Needs you")
 
 ## Open questions / decisions
 - **The ledger is not a member-facing store** (user, 2026-09-24). It exists for event
@@ -166,6 +170,9 @@
 - Separate finding: `POST /api/update-member-list` (irons-grotto-1) is unauthenticated.
 
 ## Session log
+- 2026-09-24 — Built M3–M6, versioning, announce workflow; wrote docs/VALIDATION.md. Incident:
+  a careless `pkill -f cat` killed Docker Desktop (and possibly other apps); restarted Docker,
+  local data intact. Never use broad `pkill -f` patterns.
 - 2026-09-24 — Dev-tool events verified in ledger. Fixed loot item names on F2P worlds
   (`getMembersName`).
 - 2026-09-24 — M2 built: backend ledger (11ee20c) + plugin trackers + dev tools; 16 plugin tests,
