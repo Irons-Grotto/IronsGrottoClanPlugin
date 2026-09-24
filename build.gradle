@@ -30,7 +30,7 @@ dependencies {
 }
 
 group = 'com.ironsgrotto'
-version = '0.1.0'
+version = '1.0.0'
 
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'

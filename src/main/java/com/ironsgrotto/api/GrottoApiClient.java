@@ -38,8 +38,17 @@ public class GrottoApiClient
 {
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 	private static final MediaType JPEG = MediaType.parse("image/jpeg");
-	/** Sent with every request so the server can tell plugin releases apart. */
-	public static final String PLUGIN_VERSION = "0.2.0";
+	/**
+	 * The API contract this release speaks. v1 routes only ever change in
+	 * backward-compatible ways; a breaking change is a new version beside it.
+	 */
+	public static final String API_PREFIX = "/api/plugin/v1";
+
+	/**
+	 * Sent with every request. The server refuses releases older than its
+	 * minimum with 426, which the plugin shows as "please update".
+	 */
+	public static final String PLUGIN_VERSION = "1.0.0";
 
 	private final OkHttpClient http;
 	private final Gson gson;
@@ -67,12 +76,12 @@ public class GrottoApiClient
 
 	public CompletableFuture<MeResponse> getMe(AccountIdentity identity)
 	{
-		return getAsync("/api/plugin/me", identity, MeResponse.class);
+		return getAsync(API_PREFIX + "/me", identity, MeResponse.class);
 	}
 
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
 	{
-		return getAsync("/api/plugin/clan-events", identity, ClanEventStatus.class);
+		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class);
 	}
 
 	/**
@@ -99,7 +108,7 @@ public class GrottoApiClient
 	/** Sends account progress; returns the server's reply. Blocking; background threads only. */
 	public JsonObject putProgress(AccountIdentity identity, JsonObject progress) throws ApiException
 	{
-		Request request = requestBuilder("/api/plugin/progress", identity)
+		Request request = requestBuilder(API_PREFIX + "/progress", identity)
 			.put(RequestBody.create(JSON, gson.toJson(progress)))
 			.build();
 
@@ -121,7 +130,7 @@ public class GrottoApiClient
 			.addFormDataPart("image", eventId + ".jpg", RequestBody.create(JPEG, jpeg))
 			.build();
 
-		Request request = requestBuilder("/api/plugin/events/" + eventId + "/screenshot", identity)
+		Request request = requestBuilder(API_PREFIX + "/events/" + eventId + "/screenshot", identity)
 			.post(body)
 			.build();
 

@@ -64,7 +64,8 @@ public class GrottoApiClientTest
 		MeResponse me = client.getMe(ACCOUNT).get();
 
 		RecordedRequest request = server.takeRequest();
-		assertEquals("/api/plugin/me", request.getPath());
+		assertEquals("/api/plugin/v1/me", request.getPath());
+		assertEquals(GrottoApiClient.PLUGIN_VERSION, request.getHeader("X-Plugin-Version"));
 		assertEquals("Bearer igp_test", request.getHeader("Authorization"));
 		assertEquals(ACCOUNT.getAccountHash(), request.getHeader("X-Account-Hash"));
 		assertEquals("Iron Dude", request.getHeader("X-Player-Name"));
@@ -118,7 +119,7 @@ public class GrottoApiClientTest
 
 		try
 		{
-			client.postBlocking("/api/plugin/events", ACCOUNT, new Object(), Object.class);
+			client.postBlocking(GrottoApiClient.API_PREFIX + "/events", ACCOUNT, new Object(), Object.class);
 			fail("expected an error");
 		}
 		catch (ApiException e)

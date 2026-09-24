@@ -64,7 +64,7 @@ import net.runelite.client.util.ImageUtil;
 )
 public class IronsGrottoPlugin extends Plugin
 {
-	private static final String EVENTS_PATH = "/api/plugin/events";
+	private static final String EVENTS_PATH = GrottoApiClient.API_PREFIX + "/events";
 	private static final long FLUSH_INTERVAL_SECONDS = 5;
 	private static final long REFRESH_CHECK_SECONDS = 30;
 
@@ -319,6 +319,11 @@ public class IronsGrottoPlugin extends Plugin
 		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized())
 		{
 			panel.showError("Your plugin token was not accepted. Generate a new one on the website.");
+		}
+		else if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
+		{
+			// Nothing recorded is lost: the outbox and screenshots wait for the update.
+			panel.showError(cause.getMessage() + " Your recorded activity is kept and sent after you update.");
 		}
 		else
 		{

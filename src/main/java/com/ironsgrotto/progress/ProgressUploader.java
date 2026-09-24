@@ -140,7 +140,7 @@ public class ProgressUploader
 		{
 			synchronized (this)
 			{
-				if (e.isRetryable() || e.getStatus() == 401 || e.getStatus() == 403)
+				if (e.isRetryable() || e.isClientBlocked())
 				{
 					nextAttemptAt = clock.millis() + backoffMs;
 					backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);

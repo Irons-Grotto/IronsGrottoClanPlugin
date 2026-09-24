@@ -146,6 +146,19 @@ public class OutboxTest
 	}
 
 	@Test
+	public void holdsEventsWhenThePluginIsOutdated()
+	{
+		Outbox outbox = outbox();
+		outbox.enqueue(entry(MAIN));
+		nextFailure = new ApiException(426, "update");
+
+		outbox.flush();
+
+		assertTrue(outbox.isPaused());
+		assertEquals(1, outbox.size());
+	}
+
+	@Test
 	public void discardsABatchTheServerCannotParse()
 	{
 		Outbox outbox = outbox();

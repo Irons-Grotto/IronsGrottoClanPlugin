@@ -66,7 +66,7 @@ public class ScreenshotUploader
 						store.remove(pending.getEventId());
 					}
 				}
-				else if (e.isRetryable() || e.getStatus() == 401 || e.getStatus() == 403)
+				else if (e.isRetryable() || e.isClientBlocked())
 				{
 					// Try again next pass; stop this one so a dead server is not
 					// hit once per screenshot.

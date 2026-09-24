@@ -19,7 +19,8 @@ import lombok.extern.slf4j.Slf4j;
  * Events are appended as they happen and sent in batches by {@link #flush()},
  * which the plugin calls on a background schedule. Nothing is dropped for a
  * transient failure: network errors, rate limits and server errors back off
- * and retry. A bad token pauses sending until {@link #resume()}.
+ * and retry. A bad token or an outdated plugin pauses sending until
+ * {@link #resume()} — on the next start after an update, or a token change.
  */
 @Slf4j
 public class Outbox
@@ -168,10 +169,10 @@ public class Outbox
 			return;
 		}
 
-		if (e.getStatus() == 401 || e.getStatus() == 403)
+		if (e.isClientBlocked())
 		{
-			// Not the events' fault: the token or the account link is wrong.
-			// Keep them and wait for the member to fix it.
+			// Not the events' fault: the token, the account link or the plugin
+			// version is wrong. Keep them and wait for the member to fix it.
 			log.warn("Outbox paused: {}", e.getMessage());
 			paused = true;
 			return;
