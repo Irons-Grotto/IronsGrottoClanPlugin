@@ -220,6 +220,14 @@ public class GrottoPanel extends PluginPanel
 					}
 				}
 			}
+			// The one after, as a small line under whatever is shown above.
+			if (active != null && events.getNext() != null)
+			{
+				ClanEventStatus.EventSummary next = events.getNext();
+				eventSection.add(Box.createVerticalStrut(4));
+				eventSection.add(small("Next: " + next.getTypeLabel() + " — " + next.getMetricName()
+					+ " · " + timeLeft("starts", next.getStartsAt()).replaceFirst("^starts in ", "in ")));
+			}
 			else if (events.getNext() != null)
 			{
 				ClanEventStatus.EventSummary next = events.getNext();

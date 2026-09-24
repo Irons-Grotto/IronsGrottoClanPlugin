@@ -31,7 +31,8 @@
   (`config/dev-overrides.ts`), so username/password test accounts can onboard. Alternative for
   Jagex accounts: `--insecure-write-credentials` via RuneLite `--configure`, launch once from the
   Jagex Launcher → `~/.runelite/credentials.properties` (delete when done).
-- Local DB has no clan events, so the panel shows "No event running" unless one is imported.
+- Local DB has production's `clan_events` + `clan_event_wins` copied in (2026-09-24), with
+  `competition_key` nulled so local admin actions can't edit real Temple competitions.
 
 ## Repos
 - Plugin: this repo (`~/IronsGrottoClanPlugin`), Java 11, Gradle, RuneLite plugin-hub layout.
@@ -170,6 +171,8 @@
 - Separate finding: `POST /api/update-member-list` (irons-grotto-1) is unauthenticated.
 
 ## Session log
+- 2026-09-24 — Copied prod competitions locally; found + fixed a prod bug (all-digit RSN made
+  Temple standings fail, fedc01c). Panel shows the next event under the active one.
 - 2026-09-24 — Built M3–M6, versioning, announce workflow; wrote docs/VALIDATION.md. Incident:
   a careless `pkill -f cat` killed Docker Desktop (and possibly other apps); restarted Docker,
   local data intact. Never use broad `pkill -f` patterns.

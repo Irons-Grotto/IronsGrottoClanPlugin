@@ -38,7 +38,9 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
 
 ## 2. Panel — account A
 - [ ] Log in: panel shows RSN, rank, points and a progress bar "N pts to <next rank>".
-- [ ] "No event running" (local DB has no SOTW/BOTW; the top-5 view needs an imported event).
+- [ ] SOTW/BOTW: the local DB has the real competitions (copied from production, edit keys
+      removed). Shows the running one with its **top 5** from TempleOSRS and time left, and a small
+      **"Next: Boss of the Week — Zulrah · in …"** line under it.
 - [ ] Revoke the token on `/plugin`, click Refresh → "Your plugin token was not accepted…".
       Paste a fresh one → recovers without a restart.
 
