@@ -51,6 +51,11 @@ public class GrottoPanel extends PluginPanel
 	private final JPanel activitySection = section();
 	private final JPanel devSection = section();
 	private final JLabel pendingLabel = new JLabel();
+
+	{
+		pendingLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		pendingLabel.setFont(FontManager.getRunescapeSmallFont());
+	}
 	private final Deque<OutboxEntry> recent = new ArrayDeque<>();
 	private final String tokenUrl;
 
@@ -58,7 +63,7 @@ public class GrottoPanel extends PluginPanel
 
 	private final JLabel progressLabel = new JLabel();
 
-	public GrottoPanel(Runnable onRefresh, String tokenUrl, DevTools devTools, Runnable onSyncProgress)
+	public GrottoPanel(String tokenUrl, DevTools devTools)
 	{
 		this.tokenUrl = tokenUrl;
 
@@ -89,28 +94,16 @@ public class GrottoPanel extends PluginPanel
 		content.add(devSection);
 		content.add(Box.createVerticalStrut(8));
 
-		JPanel progressRow = new JPanel(new BorderLayout());
-		progressRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+		// No buttons: the plugin syncs by itself on login, logout and the
+		// events that change a member's standing, and refreshes this panel
+		// when the server has them.
 		progressLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		progressLabel.setFont(FontManager.getRunescapeSmallFont());
-		progressLabel.setText("Progress not synced yet");
-		JButton syncProgress = new JButton("Sync progress");
-		syncProgress.setToolTipText("Send your levels, diaries, combat achievements and quests now. Open your collection log to sync it too.");
-		syncProgress.addActionListener(e -> onSyncProgress.run());
-		progressRow.add(progressLabel, BorderLayout.WEST);
-		progressRow.add(syncProgress, BorderLayout.EAST);
-		content.add(progressRow);
-		content.add(Box.createVerticalStrut(4));
-
-		JPanel footer = new JPanel(new BorderLayout());
-		footer.setAlignmentX(Component.LEFT_ALIGNMENT);
-		pendingLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		pendingLabel.setFont(FontManager.getRunescapeSmallFont());
-		JButton refresh = new JButton("Refresh");
-		refresh.addActionListener(e -> onRefresh.run());
-		footer.add(pendingLabel, BorderLayout.WEST);
-		footer.add(refresh, BorderLayout.EAST);
-		content.add(footer);
+		progressLabel.setText("Progress syncs when you log in and out");
+		progressLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		content.add(progressLabel);
+		pendingLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		content.add(pendingLabel);
 
 		add(content, BorderLayout.NORTH);
 

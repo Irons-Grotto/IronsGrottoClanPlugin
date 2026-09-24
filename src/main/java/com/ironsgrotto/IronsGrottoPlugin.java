@@ -116,8 +116,6 @@ public class IronsGrottoPlugin extends Plugin
 	@Inject
 	private CollectionLogSync collectionLogSync;
 
-	@Inject
-	private net.runelite.client.callback.ClientThread clientThread;
 
 	private GrottoPanel panel;
 	private NavigationButton navButton;
@@ -138,7 +136,7 @@ public class IronsGrottoPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		panel = new GrottoPanel(this::refresh, tokenPageUrl(), devTools, this::syncProgressNow);
+		panel = new GrottoPanel(tokenPageUrl(), devTools);
 		panel.setDevToolsVisible(config.developerTools());
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -253,19 +251,6 @@ public class IronsGrottoPlugin extends Plugin
 	public PluginPolicy getPolicy()
 	{
 		return policy;
-	}
-
-	/** The panel's "Sync progress" button: read everything now. */
-	private void syncProgressNow()
-	{
-		clientThread.invokeLater(() ->
-		{
-			AccountIdentity identity = session.getIdentity();
-			if (identity != null)
-			{
-				progressSync.readAll(identity);
-			}
-		});
 	}
 
 	private void refresh()
