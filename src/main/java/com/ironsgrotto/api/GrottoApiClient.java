@@ -52,7 +52,7 @@ public class GrottoApiClient
 		this(http, gson, config, "IronsGrottoPlugin/" + PLUGIN_VERSION);
 	}
 
-	GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config, String userAgent)
+	protected GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config, String userAgent)
 	{
 		this.http = http;
 		this.gson = gson;
@@ -89,6 +89,23 @@ public class GrottoApiClient
 		try (Response response = http.newCall(request).execute())
 		{
 			return parse(response, responseType);
+		}
+		catch (IOException e)
+		{
+			throw unreachable(request.url(), e);
+		}
+	}
+
+	/** Sends account progress; returns the server's reply. Blocking; background threads only. */
+	public JsonObject putProgress(AccountIdentity identity, JsonObject progress) throws ApiException
+	{
+		Request request = requestBuilder("/api/plugin/progress", identity)
+			.put(RequestBody.create(JSON, gson.toJson(progress)))
+			.build();
+
+		try (Response response = http.newCall(request).execute())
+		{
+			return parse(response, JsonObject.class);
 		}
 		catch (IOException e)
 		{

@@ -50,4 +50,13 @@ public class ChatMessageParserTest
 		assertEquals(Optional.of("duplicate"), ChatMessageParser.petVariant("You have a funny feeling like you would have been followed..."));
 		assertFalse(ChatMessageParser.petVariant("You feel a funny feeling.").isPresent());
 	}
+
+	@Test
+	public void readsClueCounts()
+	{
+		assertEquals(Optional.of(new ChatMessageParser.ClueCount("Hard", 12)), ChatMessageParser.clueCount("You have completed 12 hard Treasure Trails."));
+		assertEquals(Optional.of(new ChatMessageParser.ClueCount("Beginner", 1)), ChatMessageParser.clueCount("You have completed 1 beginner Treasure Trail."));
+		assertEquals(Optional.of(new ChatMessageParser.ClueCount("Master", 1234)), ChatMessageParser.clueCount("You have completed 1,234 master Treasure Trails."));
+		assertFalse(ChatMessageParser.clueCount("You have completed the Treasure Trail.").isPresent());
+	}
 }

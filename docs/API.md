@@ -64,3 +64,25 @@ boss, test events excluded), `delayed` (arrived > 1h after `occurredAt`), `test`
 `lib/db/plugin-ledger-operations.ts` → `getLedgerEvents({ from, to, playerNames?, accountHashes?,
 types?, itemIds?, itemNames?, sources?, bosses?, includeTest?, limit? })`. Test events excluded
 unless `includeTest`. Matches on `occurred_at`.
+
+## `POST /api/plugin/events/{id}/screenshot`
+Multipart, one `image` field (JPEG/PNG ≤ 2 MB). Event must be the caller's account (else 404).
+Idempotent: an event with a screenshot returns it unchanged. Stores to Vercel Blob (or
+`.local-uploads/` under `DEV_LOCAL_UPLOADS`), sets `screenshot_url`, posts an embed with the image
+attached to `DISCORD_DROPS_CHANNEL_ID` (skipped when unset, and for test events).
+Response `data`: `{ screenshotUrl, announced }`.
+
+## `PUT /api/plugin/progress`
+Any subset of (schema: `apps/web/app/schemas/plugin-progress.ts`):
+```json
+{ "skills": { "totalLevel", "totalXp", "skills": { "Attack": { "level", "xp" } } },
+  "collectionLog": { "obtained?", "total?", "items?": [{ "id", "name", "quantity" }], "complete?" },
+  "combatAchievements": { "points", "tier": "None|Easy|…|Grandmaster" },
+  "diaries": { "Ardougne": "None|Easy|Medium|Hard|Elite", … },
+  "quests": { "questPoints", "completed": ["Cook's Assistant", …] },
+  "clues": { "Hard": 12 } }
+```
+Always stored as the account's latest snapshot. Members: merged upwards-only into the ranking
+record, rescored, category marked source `plugin`. Response `data`:
+`{ member, applied: [categories], points, rank }`.
+Plugin-owned categories (synced ≤ 30 days) are not overwritten by the Temple/WikiSync refresh.

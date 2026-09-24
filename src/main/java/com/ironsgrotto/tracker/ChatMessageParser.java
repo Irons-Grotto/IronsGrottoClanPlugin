@@ -26,6 +26,10 @@ public final class ChatMessageParser
 	private static final Pattern COLLECTION_LOG = Pattern.compile(
 		"^New item added to your collection log: (.+?)\\.?$");
 
+	/* "You have completed 12 hard Treasure Trails." */
+	private static final Pattern CLUE_COUNT = Pattern.compile(
+		"^You have completed ([\\d,]+) (beginner|easy|medium|hard|elite|master) Treasure Trails?\\.?$", Pattern.CASE_INSENSITIVE);
+
 	private static final String PET_FOLLOWER = "You have a funny feeling like you're being followed";
 	private static final String PET_BACKPACK = "You feel something weird sneaking into your backpack";
 	private static final String PET_DUPLICATE = "You have a funny feeling like you would have been followed";
@@ -70,6 +74,34 @@ public final class ChatMessageParser
 	{
 		Matcher matcher = COLLECTION_LOG.matcher(message.trim());
 		return matcher.matches() ? Optional.of(matcher.group(1).trim()) : Optional.empty();
+	}
+
+	@Value
+	public static class ClueCount
+	{
+		/** Beginner, Easy, Medium, Hard, Elite or Master — the server's tier names. */
+		String tier;
+		int count;
+	}
+
+	public static Optional<ClueCount> clueCount(String message)
+	{
+		Matcher matcher = CLUE_COUNT.matcher(message.trim());
+		if (!matcher.matches())
+		{
+			return Optional.empty();
+		}
+		String tier = matcher.group(2).toLowerCase();
+		try
+		{
+			return Optional.of(new ClueCount(
+				Character.toUpperCase(tier.charAt(0)) + tier.substring(1),
+				Integer.parseInt(matcher.group(1).replace(",", ""))));
+		}
+		catch (NumberFormatException e)
+		{
+			return Optional.empty();
+		}
 	}
 
 	/** @return follower, backpack or duplicate — the server's pet variants */

@@ -4,12 +4,12 @@
 > end of every session and whenever a checklist item completes.
 
 ## Current status / next step
-- **Milestone:** M4 Account progress — in progress (M1–M3 done). User asked: build straight through
+- **Milestone:** M6 Consumers & polish — in progress (M1–M5 done). User asked: build straight through
   to feature complete, then deliver ONE validation checklist (docs/VALIDATION.md) naming the
   account for each check.
 - **Next step:** M3 → M4 → M5 → M6, then docs/VALIDATION.md.
 - Backend: branch `mm/plugin-foundations` (M1: d67e150, 842b35f, b76bc1f, d445fa3; M2: 11ee20c,
-  e31c0a4; M3: 9e3d454) in worktree
+  e31c0a4; M3: 9e3d454; M4/M5: 489f3e1, f392f0a) in worktree
   `~/irons-grotto-1/.claude/worktrees/plugin-api`. Not pushed.
 - Plugin: this repo, branch `mm/plugin-foundations`.
 
@@ -109,12 +109,22 @@
   smoke-tested
 
 ### M4 Account progress
-- [ ] Plugin: clog full sync, CA sync, KC/diary/quest/skill sync
-- [ ] Backend: write into existing progress tables with source + last-synced
+- [x] Plugin: `progress/` — `ProgressCollector` (skills, diaries via *_DIARY_*_COMPLETE varbits,
+  CA points+tier via CA_POINTS/CA_THRESHOLD_*, quests, clog counters COLLECTION_COUNT/_MAX),
+  `CollectionLogSync` (on clog open: search-toggle trick, script 4100 args → full item list),
+  clue counts from chat, `ProgressSync` (tick 8 after login, every ~10 min, "Sync progress"
+  button), `ProgressUploader` (latest-wins per category, dedupes unchanged, backoff)
+- [x] Backend: `PUT /api/plugin/progress` → `plugin_progress_snapshots` (all accounts) +
+  upwards-only merge into `players` / `player_acquired_items` / `player_achievement_diaries`,
+  rescore; `player_progress_sources` — verified against local DB
+- Not done: CA *task ids* (WikiSync still needed for tzhaar/blood torva/quiver notable checks);
+  boss KC snapshot is derivable from the ledger (max kc per boss) so no separate sync.
 
 ### M5 Source precedence
-- [ ] Scoring/refresh prefers plugin data; Temple/WikiSync fallback only
-- [ ] Website shows value source
+- [x] `updatePlayerWithFullData` skips categories the plugin synced ≤30 days ago
+  (`progress-source-operations.ts`); Temple clog not fetched at all when plugin-owned; Temple/
+  WikiSync writes recorded as their source — verified against local DB
+- [x] `/plugin` shows "Where your progress comes from" per account
 
 ### M6 Consumers & polish
 - [ ] Staff ledger view

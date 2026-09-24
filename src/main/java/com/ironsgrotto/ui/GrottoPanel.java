@@ -56,7 +56,9 @@ public class GrottoPanel extends PluginPanel
 
 	private static final int RECENT_LIMIT = 10;
 
-	public GrottoPanel(Runnable onRefresh, String tokenUrl, DevTools devTools)
+	private final JLabel progressLabel = new JLabel();
+
+	public GrottoPanel(Runnable onRefresh, String tokenUrl, DevTools devTools, Runnable onSyncProgress)
 	{
 		this.tokenUrl = tokenUrl;
 
@@ -86,6 +88,19 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(devSection);
 		content.add(Box.createVerticalStrut(8));
+
+		JPanel progressRow = new JPanel(new BorderLayout());
+		progressRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+		progressLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		progressLabel.setFont(FontManager.getRunescapeSmallFont());
+		progressLabel.setText("Progress not synced yet");
+		JButton syncProgress = new JButton("Sync progress");
+		syncProgress.setToolTipText("Send your levels, diaries, combat achievements and quests now. Open your collection log to sync it too.");
+		syncProgress.addActionListener(e -> onSyncProgress.run());
+		progressRow.add(progressLabel, BorderLayout.WEST);
+		progressRow.add(syncProgress, BorderLayout.EAST);
+		content.add(progressRow);
+		content.add(Box.createVerticalStrut(4));
 
 		JPanel footer = new JPanel(new BorderLayout());
 		footer.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -234,6 +249,11 @@ public class GrottoPanel extends PluginPanel
 			}
 			renderRecent();
 		});
+	}
+
+	public void setProgressSynced(java.time.LocalTime at)
+	{
+		onEdt(() -> progressLabel.setText("Progress synced " + at.withNano(0).withSecond(0)));
 	}
 
 	public void setDevToolsVisible(boolean visible)

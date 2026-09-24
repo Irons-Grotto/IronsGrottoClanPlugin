@@ -11,6 +11,9 @@ import com.ironsgrotto.ledger.LedgerRecorder;
 import com.ironsgrotto.outbox.Outbox;
 import com.ironsgrotto.outbox.OutboxEntry;
 import com.ironsgrotto.outbox.OutboxStore;
+import com.ironsgrotto.progress.CollectionLogSync;
+import com.ironsgrotto.progress.ProgressSync;
+import com.ironsgrotto.progress.ProgressUploader;
 import com.ironsgrotto.screenshot.ScreenshotPolicy;
 import com.ironsgrotto.screenshot.ScreenshotService;
 import com.ironsgrotto.screenshot.ScreenshotStore;
@@ -104,6 +107,18 @@ public class IronsGrottoPlugin extends Plugin
 	@Inject
 	private ScreenshotService screenshots;
 
+	@Inject
+	private ProgressSync progressSync;
+
+	@Inject
+	private ProgressUploader progressUploader;
+
+	@Inject
+	private CollectionLogSync collectionLogSync;
+
+	@Inject
+	private net.runelite.client.callback.ClientThread clientThread;
+
 	private GrottoPanel panel;
 	private NavigationButton navButton;
 	private Outbox outbox;
@@ -123,7 +138,7 @@ public class IronsGrottoPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		panel = new GrottoPanel(this::refresh, tokenPageUrl(), devTools);
+		panel = new GrottoPanel(this::refresh, tokenPageUrl(), devTools, this::syncProgressNow);
 		panel.setDevToolsVisible(config.developerTools());
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -153,6 +168,15 @@ public class IronsGrottoPlugin extends Plugin
 		});
 		eventBus.register(chatTracker);
 		eventBus.register(lootTracker);
+		eventBus.register(progressSync);
+		eventBus.register(collectionLogSync);
+
+		progressUploader.setOnSynced(result ->
+		{
+			panel.setProgressSynced(java.time.LocalTime.now());
+			// Points may have moved; show the new standing.
+			refresh();
+		});
 
 		flushTask = executor.scheduleWithFixedDelay(this::flushOutbox, FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
 		refreshTask = executor.scheduleWithFixedDelay(this::refreshIfStale, REFRESH_CHECK_SECONDS, REFRESH_CHECK_SECONDS, TimeUnit.SECONDS);
@@ -167,6 +191,8 @@ public class IronsGrottoPlugin extends Plugin
 	{
 		eventBus.unregister(chatTracker);
 		eventBus.unregister(lootTracker);
+		eventBus.unregister(progressSync);
+		eventBus.unregister(collectionLogSync);
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
 		if (flushTask != null)
@@ -227,6 +253,19 @@ public class IronsGrottoPlugin extends Plugin
 	public PluginPolicy getPolicy()
 	{
 		return policy;
+	}
+
+	/** The panel's "Sync progress" button: read everything now. */
+	private void syncProgressNow()
+	{
+		clientThread.invokeLater(() ->
+		{
+			AccountIdentity identity = session.getIdentity();
+			if (identity != null)
+			{
+				progressSync.readAll(identity);
+			}
+		});
 	}
 
 	private void refresh()
@@ -314,6 +353,7 @@ public class IronsGrottoPlugin extends Plugin
 		{
 			current.flush();
 			screenshotUploader.uploadPending();
+			progressUploader.flush();
 		}
 		catch (RuntimeException e)
 		{
