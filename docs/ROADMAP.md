@@ -137,6 +137,11 @@
 - [ ] Plugin Hub submission (user action; see VALIDATION.md "Needs you")
 
 ## Open questions / decisions
+- **Data boundary** (user, 2026-09-24): two sources of truth, backend deferential to the plugin —
+  see [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md). Plugin-owned categories (≤30 days): Temple/WikiSync
+  may raise, never lower (SQL `greatest`). Plugin writes must not bump `players.updated_at`.
+- **No manual sync** (user): plugin syncs on login, logout/client close, and standing-changing
+  events (clog slot, pet); xp etc. once per session is enough. No Refresh/Sync buttons.
 - **The ledger is not a member-facing store** (user, 2026-09-24). It exists for event
   arbitration only (staff pane + rule evaluator). Member-visible effects flow through existing
   feeds: recent clogs (reads `player_acquired_items`, filled by progress sync) and accomplishments
@@ -171,6 +176,9 @@
 - Separate finding: `POST /api/update-member-list` (irons-grotto-1) is unauthenticated.
 
 ## Session log
+- 2026-09-24 — Data boundary written; fixed refresh starvation (updated_at), raise-only
+  precedence (atomic), rename resilience; plugin auto-sync (login/logout/close/events), buttons
+  removed. Backend fbe005b, 7c7d43e, 1b97c11; plugin cde5f22.
 - 2026-09-24 — Copied Aceriwyn (user's main) from prod into local DB. In-game test on it found:
   readings sent before an account is a member were never applied (plugin skips unchanged
   categories) → fixed server-side (e405a92): unapplied snapshots applied on next request incl.

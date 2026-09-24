@@ -41,8 +41,9 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
 - [ ] SOTW/BOTW: the local DB has the real competitions (copied from production, edit keys
       removed). Shows the running one with its **top 5** from TempleOSRS and time left, and a small
       **"Next: Boss of the Week — Zulrah · in …"** line under it.
-- [ ] Revoke the token on `/plugin`, click Refresh → "Your plugin token was not accepted…".
-      Paste a fresh one → recovers without a restart.
+- [ ] No Refresh or Sync buttons; the footer says progress syncs on login and logout.
+- [ ] Revoke the token on `/plugin`; within ~5 min (or on next login) the panel says "Your plugin
+      token was not accepted…". Paste a fresh one → recovers without a restart.
 
 ## 3. Event ledger via developer tools — account A
 - [ ] Click **Kill count**, **Drop**, **Clog slot**, **Pet**, **Kill + drop**. Each appears under
@@ -54,7 +55,9 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
 ## 4. A real event — account A
 Real play is what the rule tester counts (test events never count). Lower the screenshot threshold
 so a cheap drop qualifies: in `apps/web/config/plugin.ts` set `minScreenshotLootValue: 0`, save,
-click Refresh in the panel. **Put it back to 1_000_000 afterwards.**
+log out and back in so the plugin picks it up. **Put it back to 1_000_000 afterwards.**
+- [ ] *(Needs a new slot)* get any collection log item you don't have → the slot is in
+      `player_acquired_items` within seconds, without opening the log, and the panel's points refresh.
 - [ ] Kill anything that drops loot (a chicken is fine). Row `loot` with no `test` flag,
       `sourceType: NPC`, GE prices, and a chat "Drop recorded: …".
 - [ ] That row gets `screenshot_url` within ~10s; the URL opens in the browser and shows the kill.
@@ -67,7 +70,9 @@ click Refresh in the panel. **Put it back to 1_000_000 afterwards.**
 - [ ] Start the relay → count drains to "All activity synced"; rows arrive once each.
 
 ## 6. Account progress — account A
-- [ ] ~5s after login the panel says **Progress synced HH:MM** (or click **Sync progress**).
+- [ ] ~5s after login the panel says **Progress synced HH:MM**.
+- [ ] Log out → a few seconds later `player_progress_sources.synced_at` moves (only if something
+      changed during the session, e.g. xp). Close the client while logged in → same.
 - [ ] **Open your collection log** once, wait ~2s → another sync.
 - [ ] Check the record:
       ```sh
