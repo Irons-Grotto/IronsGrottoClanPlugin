@@ -171,6 +171,10 @@
 - Separate finding: `POST /api/update-member-list` (irons-grotto-1) is unauthenticated.
 
 ## Session log
+- 2026-09-24 — Copied Aceriwyn (user's main) from prod into local DB. In-game test on it found:
+  readings sent before an account is a member were never applied (plugin skips unchanged
+  categories) → fixed server-side (e405a92): unapplied snapshots applied on next request incl.
+  /me. Aceriwyn now plugin-sourced for skills/clog/CA/diaries/quests; values matched prod.
 - 2026-09-24 — Copied prod competitions locally; found + fixed a prod bug (all-digit RSN made
   Temple standings fail, fedc01c). Panel shows the next event under the active one.
 - 2026-09-24 — Built M3–M6, versioning, announce workflow; wrote docs/VALIDATION.md. Incident:
