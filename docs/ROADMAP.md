@@ -84,7 +84,7 @@
 - `node scripts/dev-relay.mjs` (this repo) → http://localhost:3001 for the plugin (Java won't trust
   the dev cert).
 - Plugin: `scripts/dev-client.sh` (stops the dev client, rebuilds `irons-grotto-dev.jar`,
-  relaunches); settings → Advanced → Server URL `http://localhost:3001`, Developer tools on. Log
+  relaunches); settings → Advanced → Server URL `http://localhost:3001`. Log
   in, then paste a token in the side panel (one per account; it's checked and saved on paste).
 - Worktree `.env.local` is a copy of the main one plus: `DATABASE_URL` → local, `DEV_WAIVE_JOIN_
   REQUIREMENTS=true`, `DEV_LOCAL_UPLOADS=true`, local-only `CRON_SECRET` (trigger jobs by hand,

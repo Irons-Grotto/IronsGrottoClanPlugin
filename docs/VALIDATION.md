@@ -22,9 +22,8 @@ docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='ow
 - [ ] `open -a Docker` → `docker start irons-grotto-pg`
 - [ ] `cd ~/irons-grotto-1/.claude/worktrees/plugin-api/apps/web && yarn dev` (https://localhost:3000)
 - [ ] `cd ~/IronsGrottoClanPlugin && node scripts/dev-relay.mjs` (http://localhost:3001)
-- [ ] `./gradlew shadowJar && java -ea -jar build/libs/irons-grotto-1.0.0-all.jar --developer-mode`
-- [ ] Plugin settings: **Advanced → Server URL = `http://localhost:3001`**; log in, then paste your token into the side panel;
-      Advanced → **Developer tools** on.
+- [ ] `scripts/dev-client.sh` (stops, rebuilds and launches the dev client)
+- [ ] Plugin settings: **Advanced → Server URL = `http://localhost:3001`**; log in, then paste your token into the side panel.
 
 Handy query (latest ledger rows):
 ```sh
@@ -52,12 +51,8 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
       removed for the second account only, and the first account still works after switching back.
       `/plugin` shows each token's account name.
 
-## 3. Event ledger via developer tools — account A
-- [ ] Click **Kill count**, **Drop**, **Clog slot**, **Pet**, **Kill + drop**. Each appears under
-      *Recent activity* marked `[Test]`; Drop/Clog/Pet also get a `[Irons Grotto] [Test] …` chat
-      line within ~5s.
-- [ ] Query above: every row has `{test}` flag; the Kill + drop loot row's payload has
-      `kc`, `kcBoss: Vorkath`, `kcEventId`.
+## 3. Event ledger — account A
+Developer tools are gone; use real events (section 4) on a throwaway account.
 
 ## 4. A real event — account A
 Real play is what the rule tester counts (test events never count). Lower the screenshot threshold

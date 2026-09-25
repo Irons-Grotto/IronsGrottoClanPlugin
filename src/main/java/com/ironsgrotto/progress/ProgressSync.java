@@ -2,7 +2,6 @@ package com.ironsgrotto.progress;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatMessageParser;
@@ -175,8 +174,7 @@ public class ProgressSync
 	public void onChatMessage(ChatMessage event)
 	{
 		AccountIdentity current = session.getIdentity();
-		if (current == null || event.getType() != ChatMessageType.GAMEMESSAGE
-			|| DevTools.SENDER.equals(event.getName()))
+		if (current == null || event.getType() != ChatMessageType.GAMEMESSAGE)
 		{
 			return;
 		}

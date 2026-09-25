@@ -295,7 +295,7 @@ public class GrottoApiClient
 		return parse(response, identity, type, true);
 	}
 
-	/** @param clearOnReject drop the account's saved token if the server refuses it for this account */
+	/** @param clearOnReject drop the account's saved token if the server says it will never work */
 	private <T> T parse(Response response, AccountIdentity identity, Type type, boolean clearOnReject)
 		throws ApiException
 	{
@@ -312,9 +312,11 @@ public class GrottoApiClient
 				? envelope.get("code").getAsString()
 				: null;
 			ApiException failure = new ApiException(response.isSuccessful() ? 500 : response.code(), error, code);
-			if (clearOnReject && failure.isTokenRejectedForAccount())
+			if (clearOnReject && failure.isTokenDead())
 			{
-				tokens.clearRejected(identity);
+				tokens.clearRejected(identity, failure.getStatus() == 401
+					? "Your token was revoked or isn't recognised. Get a new one."
+					: failure.getMessage());
 			}
 			throw failure;
 		}

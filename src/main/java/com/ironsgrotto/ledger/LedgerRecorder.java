@@ -50,7 +50,7 @@ public class LedgerRecorder
 	}
 
 	/** @return true when the event was queued */
-	public boolean record(String type, JsonObject payload, boolean test)
+	public boolean record(String type, JsonObject payload)
 	{
 		Outbox current = outbox;
 		AccountIdentity account = session.getIdentity();
@@ -61,7 +61,7 @@ public class LedgerRecorder
 			return false;
 		}
 
-		OutboxEntry entry = OutboxEntry.create(type, payload, account, Instant.now(), test);
+		OutboxEntry entry = OutboxEntry.create(type, payload, account, Instant.now());
 		linker.link(entry);
 		current.enqueue(entry);
 		onRecorded.accept(entry);

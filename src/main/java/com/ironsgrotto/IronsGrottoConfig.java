@@ -73,14 +73,4 @@ public interface IronsGrottoConfig extends Config
 		return DEFAULT_API_BASE_URL;
 	}
 
-	@ConfigItem(
-		keyName = "developerTools",
-		name = "Developer tools",
-		description = "Buttons that spawn test events. Never counted for clan events.",
-		section = advancedSection
-	)
-	default boolean developerTools()
-	{
-		return false;
-	}
 }

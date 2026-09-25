@@ -1,7 +1,6 @@
 package com.ironsgrotto.tracker;
 
 import com.google.gson.JsonObject;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.ledger.LedgerRecorder;
 import javax.inject.Inject;
@@ -37,8 +36,6 @@ public class ChatEventTracker
 			return;
 		}
 
-		// Real game messages have no sender; the developer tools sign theirs.
-		boolean test = DevTools.SENDER.equals(event.getName());
 		String message = Text.removeTags(event.getMessage());
 
 		ChatMessageParser.killCount(message).ifPresent(kill ->
@@ -46,14 +43,14 @@ public class ChatEventTracker
 			JsonObject payload = new JsonObject();
 			payload.addProperty("boss", kill.getBoss());
 			payload.addProperty("kc", kill.getKc());
-			recorder.record(LedgerEventType.BOSS_KC, payload, test);
+			recorder.record(LedgerEventType.BOSS_KC, payload);
 		});
 
 		ChatMessageParser.collectionLogItem(message).ifPresent(item ->
 		{
 			JsonObject payload = new JsonObject();
 			payload.addProperty("itemName", item);
-			recorder.record(LedgerEventType.COLLECTION_LOG_ITEM, payload, test);
+			recorder.record(LedgerEventType.COLLECTION_LOG_ITEM, payload);
 		});
 
 		ChatMessageParser.petVariant(message).ifPresent(variant ->
@@ -61,7 +58,7 @@ public class ChatEventTracker
 			JsonObject payload = new JsonObject();
 			payload.addProperty("variant", variant);
 			payload.addProperty("message", message);
-			recorder.record(LedgerEventType.PET, payload, test);
+			recorder.record(LedgerEventType.PET, payload);
 		});
 	}
 }

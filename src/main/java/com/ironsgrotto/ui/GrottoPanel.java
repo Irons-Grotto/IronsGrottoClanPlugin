@@ -3,7 +3,6 @@ package com.ironsgrotto.ui;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
 import java.awt.BorderLayout;
@@ -57,7 +56,6 @@ public class GrottoPanel extends PluginPanel
 	private final JPanel accountSection = section();
 	private final JPanel eventSection = section();
 	private final JPanel activitySection = section();
-	private final JPanel devSection = section();
 	private final JLabel pendingLabel = new JLabel();
 
 	{
@@ -80,7 +78,7 @@ public class GrottoPanel extends PluginPanel
 	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
 
 	/** @param siteUrl the Irons Grotto site, e.g. https://ironsgrotto.xyz */
-	public GrottoPanel(String siteUrl, DevTools devTools)
+	public GrottoPanel(String siteUrl)
 	{
 		this.tokenUrl = siteUrl + "/plugin";
 		this.joinUrl = siteUrl + "/join";
@@ -109,8 +107,6 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
-		content.add(devSection);
-		content.add(Box.createVerticalStrut(8));
 
 		// No buttons and no "all good" status: the plugin syncs by itself, and
 		// the panel only speaks up when the member has something to do.
@@ -119,7 +115,6 @@ public class GrottoPanel extends PluginPanel
 
 		add(content, BorderLayout.NORTH);
 
-		buildDevSection(devTools);
 		renderRecent();
 		showLoggedOut();
 		setPendingCount(0);
@@ -377,15 +372,6 @@ public class GrottoPanel extends PluginPanel
 		});
 	}
 
-	public void setDevToolsVisible(boolean visible)
-	{
-		onEdt(() ->
-		{
-			devSection.setVisible(visible);
-			revalidateAll();
-		});
-	}
-
 	private void renderRecent()
 	{
 		activitySection.removeAll();
@@ -399,7 +385,7 @@ public class GrottoPanel extends PluginPanel
 		activitySection.add(heading("Recent activity"));
 		for (OutboxEntry entry : recent)
 		{
-			activitySection.add(small((entry.isTest() ? "[Test] " : "") + describe(entry)));
+			activitySection.add(small(describe(entry)));
 		}
 
 		activitySection.setVisible(true);
@@ -423,30 +409,6 @@ public class GrottoPanel extends PluginPanel
 			default:
 				return entry.getType();
 		}
-	}
-
-	private void buildDevSection(DevTools devTools)
-	{
-		devSection.add(heading("Developer tools"));
-		devSection.add(wrapped("Spawns test events. They never count for clan events."));
-		devSection.add(Box.createVerticalStrut(4));
-
-		JPanel buttons = new JPanel(new GridLayout(3, 2, 4, 4));
-		buttons.setOpaque(false);
-		buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-		buttons.add(devButton("Kill count", devTools::spawnKillCount));
-		buttons.add(devButton("Drop", devTools::spawnDrop));
-		buttons.add(devButton("Clog slot", devTools::spawnCollectionLog));
-		buttons.add(devButton("Pet", devTools::spawnPet));
-		buttons.add(devButton("Kill + drop", devTools::spawnKillWithDrop));
-		devSection.add(buttons);
-	}
-
-	private static JButton devButton(String text, Runnable action)
-	{
-		JButton button = new JButton(text);
-		button.addActionListener(e -> action.run());
-		return button;
 	}
 
 	public void setPendingCount(int pending)

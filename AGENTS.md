@@ -99,8 +99,8 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   through :3001 breaks server actions (Next refuses an Origin that isn't the forwarded host).
 - Jagex accounts in the dev client: `--insecure-write-credentials` via RuneLite `--configure`,
   launch once from the Jagex Launcher, then delete `~/.runelite/credentials.properties`.
-- Developer tools (Advanced) spawn test events through the real hooks. They're flagged `test`
-  and never count for clan events or post to Discord.
+- There are no developer tools in the plugin: test with real game events on a throwaway account.
+  `scripts/reset-onboarding.sh <rsn>` wipes an account from the local stack to onboard it again.
 - **Never use broad kill patterns** (`pkill -f cat` once took down Docker Desktop). Kill by PID.
   `pgrep -f <jar>` (even `"java.*<jar>"`) also matches the shell that launched it, so a kill
   gets two PIDs and fails, and a wait loop never ends. Match on process name:

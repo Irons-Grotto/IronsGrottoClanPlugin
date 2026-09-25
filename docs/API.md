@@ -77,6 +77,8 @@ Request (≤ 50 events, all for the header account):
 { "events": [ { "id": "<uuid, client-generated>", "type": "loot|collection_log_item|boss_kc|pet",
                 "occurredAt": "2026-09-24T12:00:00Z", "payload": { … }, "test": false } ] }
 ```
+`test` is optional and still accepted; the plugin no longer sends it (its developer tools were
+removed).
 Payloads (`apps/web/app/schemas/plugin-ledger.ts`):
 - `loot`: `{ source, sourceType (NPC|PLAYER|EVENT|PICKPOCKET|UNKNOWN), combatLevel?, items:[{id,name,quantity,price}], totalValue }`
   — totalValue recomputed server-side.

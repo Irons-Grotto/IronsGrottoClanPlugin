@@ -158,7 +158,7 @@ public class GrottoApiClientTest
 	public void dropsTheTokenWhenTheServerSaysItIsForAnotherAccount()
 	{
 		AccountIdentity[] cleared = new AccountIdentity[1];
-		tokens.setOnCleared(account -> cleared[0] = account);
+		tokens.setOnCleared((account, reason) -> cleared[0] = account);
 		server.enqueue(new MockResponse().setResponseCode(403)
 			.setBody("{\"success\":false,\"error\":\"This token is for a different account.\",\"code\":\"token_account_mismatch\"}"));
 
@@ -246,5 +246,28 @@ public class GrottoApiClientTest
 		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":false}}"));
 
 		assertFalse(client.checkRegistration("Nobody Here").get());
+	}
+
+	@Test
+	public void dropsATokenTheServerNoLongerRecognises()
+	{
+		String[] reason = new String[1];
+		tokens.setOnCleared((account, why) -> reason[0] = why);
+		server.enqueue(new MockResponse().setResponseCode(401)
+			.setBody("{\"success\":false,\"error\":\"Invalid or revoked plugin token\"}"));
+
+		try
+		{
+			client.postBlocking(GrottoApiClient.API_PREFIX + "/events", ACCOUNT, new Object(), Object.class);
+			fail("expected an error");
+		}
+		catch (ApiException e)
+		{
+			assertTrue(e.isTokenDead());
+			assertTrue(e.isClientBlocked());
+		}
+
+		assertEquals("", tokens.get(ACCOUNT));
+		assertTrue(reason[0].contains("revoked"));
 	}
 }

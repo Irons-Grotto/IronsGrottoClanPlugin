@@ -7,7 +7,6 @@ import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
 import com.ironsgrotto.api.model.PluginPolicy;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.ledger.LedgerRecorder;
 import com.ironsgrotto.outbox.Outbox;
 import com.ironsgrotto.outbox.OutboxEntry;
@@ -104,8 +103,6 @@ public class IronsGrottoPlugin extends Plugin
 	@Inject
 	private LootEventTracker lootTracker;
 
-	@Inject
-	private DevTools devTools;
 
 	@Inject
 	private ScreenshotService screenshots;
@@ -142,8 +139,7 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp()
 	{
 		executor.start();
-		panel = new GrottoPanel(siteUrl(), devTools);
-		panel.setDevToolsVisible(config.developerTools());
+		panel = new GrottoPanel(siteUrl());
 		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
@@ -244,10 +240,6 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 
-		if ("developerTools".equals(event.getKey()))
-		{
-			panel.setDevToolsVisible(config.developerTools());
-		}
 
 		if ("apiBaseUrl".equals(event.getKey()))
 		{
@@ -327,13 +319,13 @@ public class IronsGrottoPlugin extends Plugin
 	}
 
 	/** The server will never take this account's token; ask for another. */
-	private void tokenRejected(AccountIdentity account)
+	private void tokenRejected(AccountIdentity account, String reason)
 	{
-		String message = "That token is for a different account. Paste a token for " + account.getRsn() + ".";
-		chat(message);
+		chat(reason);
 		if (account.equals(session.getIdentity()))
 		{
-			panel.showNoToken(account.getRsn(), message);
+			panel.showNoToken(account.getRsn(), reason);
+			lookUpRegistration(account.getRsn());
 		}
 	}
 
@@ -391,19 +383,13 @@ public class IronsGrottoPlugin extends Plugin
 	{
 		Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
 
-		if (cause instanceof ApiException && ((ApiException) cause).isTokenRejectedForAccount())
+		if (cause instanceof ApiException && ((ApiException) cause).isTokenDead())
 		{
 			// Already handled: the token is gone and the panel asks for another.
 			return null;
 		}
 
-		AccountIdentity identity = session.getIdentity();
-		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized() && identity != null)
-		{
-			// Revoked or mistyped. Kept, in case it was a typo; a new paste replaces it.
-			panel.showNoToken(identity.getRsn(), "Token not accepted. Paste a new one.");
-		}
-		else if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
+		if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
 		{
 			// Nothing recorded is lost: the outbox and screenshots wait for the update.
 			panel.showError(cause.getMessage());
@@ -502,7 +488,7 @@ public class IronsGrottoPlugin extends Plugin
 			this.events = new ArrayList<>();
 			for (OutboxEntry entry : batch)
 			{
-				events.add(new EventDto(entry.getId(), entry.getType(), entry.getOccurredAt(), entry.getPayload(), entry.isTest()));
+				events.add(new EventDto(entry.getId(), entry.getType(), entry.getOccurredAt(), entry.getPayload()));
 			}
 		}
 	}
@@ -514,7 +500,6 @@ public class IronsGrottoPlugin extends Plugin
 		private final String type;
 		private final String occurredAt;
 		private final JsonObject payload;
-		private final boolean test;
 	}
 
 	@Data
