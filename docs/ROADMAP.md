@@ -8,9 +8,9 @@
   [`docs/VALIDATION.md`](VALIDATION.md). Fix whatever it turns up, then push + PRs + Plugin Hub.
 - **Next step:** read the user's results against docs/VALIDATION.md; fix failures; then the
   "Needs you" list there (license confirm, push/PRs, prod config, webhook secret, Plugin Hub).
-- Backend: branch `mm/plugin-foundations`, 14 commits on origin/main (M1–M6, versioning,
-  accomplishments wiring). Unpushed. in worktree
-  `~/irons-grotto-1/.claude/worktrees/plugin-api`. Not pushed.
+  **P0 after that: M7 plugin-first onboarding** (below).
+- Backend: branch `mm/plugin-foundations` in worktree
+  `~/irons-grotto-1/.claude/worktrees/plugin-api`. Unpushed.
 - Plugin: this repo, branch `mm/plugin-foundations`.
 
 ## Local test setup
@@ -136,6 +136,40 @@
 - [x] Announce-on-merge workflow + CLAUDE.md; BSD-2 LICENSE (user to confirm); README
 - [ ] Plugin Hub submission (user action; see VALIDATION.md "Needs you")
 
+### M7 Plugin-first onboarding — **P0** (user, 2026-09-25)
+**End state:** `/join` is built around the plugin. The member generates a token, and from then on
+the page is a live, interactive walkthrough that watches the plugin's data arrive and moves on by
+itself: each step says what to do in game, shows "waiting for your plugin…", and advances the
+moment the server sees it. The account is created from what the plugin read, not from a
+Temple/WikiSync scan. Members who don't use RuneLite keep today's scan as the fallback (the
+existing "Skip for now" path).
+
+Walkthrough the page should drive (each step completes on server-observed data):
+1. **Token made** → "Paste it into the Irons Grotto plugin settings" → done when the token is
+   first used (`plugin_tokens.last_used_at` set).
+2. **Log in** → done when the account links (`plugin_accounts` row; shows the RSN it saw, so
+   the member confirms it's the right account; an alt can be picked if several link).
+3. **Progress read** → done when the login snapshot lands (skills, diaries, CA tier, clog
+   counters): show total level / CA tier / clog count as they arrive.
+4. **Open your collection log** → done when the full `collection_log` snapshot lands: show the
+   slot count.
+5. **Settings check** → the plugin reports whether the in-game "new collection log item" chat
+   notification is on and whether RuneLite's Loot Tracker is enabled; the page asks the member to
+   fix either if not (both are needed for event tracking).
+6. **Rank reveal / apply** → account created from the plugin's snapshots (they're already stored
+   per account hash for prospects), then the existing reveal + application.
+
+Design notes (not prescriptive):
+- Needs a session-authenticated **status endpoint** for the web page (e.g. per step: token used,
+  linked RSN(s), which snapshot kinds exist + headline values) that the page polls every few
+  seconds. It's a site route (session auth), never a plugin route — the two auth primitives stay
+  separate.
+- Onboarding currently creates the player from the scan; it needs a "create from plugin
+  snapshots" path. The total-level gate, account type and clan-membership checks still apply
+  (account type: Temple, or the plugin reading the game-mode varbit — see open gaps).
+- The plugin needs to report the two settings in step 5 (small additive v1 field).
+- Must degrade gracefully: any step can be skipped to fall back to the scan.
+
 ## Open questions / decisions
 - **Only notable items and pets are stored** from plugin collection logs (user, 2026-09-25) — in
   `player_acquired_items` *and* in `plugin_progress_snapshots` (no full raw list kept). Names are
@@ -180,6 +214,9 @@
 - Separate finding: `POST /api/update-member-list` (irons-grotto-1) is unauthenticated.
 
 ## Session log
+- 2026-09-25 — Added M7 (P0): plugin-first interactive onboarding. Collection log uploads stay
+  full-list (server filters; ~40–85KB, ≤ every 30 min); Temple diffs client-side only for scale.
+  Plugin network work moved off RuneLite's shared executor (771911a).
 - 2026-09-24 — Data boundary written; fixed refresh starvation (updated_at), raise-only
   precedence (atomic), rename resilience; plugin auto-sync (login/logout/close/events), buttons
   removed. Backend fbe005b, 7c7d43e, 1b97c11; plugin cde5f22.
