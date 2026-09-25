@@ -20,10 +20,11 @@ import static org.junit.Assert.fail;
 public class GrottoApiClientTest
 {
 	private static final AccountIdentity ACCOUNT = new AccountIdentity("-4611686018427387904", "Iron Dude");
+	private static final AccountIdentity ALT = new AccountIdentity("42", "Alt Dude");
 
 	private MockWebServer server;
 	private GrottoApiClient client;
-	private String token = "igp_test";
+	private MemoryTokenStore tokens;
 
 	@Before
 	public void setUp() throws Exception
@@ -32,14 +33,11 @@ public class GrottoApiClientTest
 		server.start();
 		String baseUrl = server.url("/").toString();
 
+		tokens = new MemoryTokenStore();
+		tokens.set(ACCOUNT, "igp_test");
+
 		IronsGrottoConfig config = new IronsGrottoConfig()
 		{
-			@Override
-			public String pluginToken()
-			{
-				return token;
-			}
-
 			@Override
 			public String apiBaseUrl()
 			{
@@ -47,7 +45,7 @@ public class GrottoApiClientTest
 			}
 		};
 
-		client = new GrottoApiClient(new OkHttpClient(), new Gson(), config, "test-agent");
+		client = new GrottoApiClient(new OkHttpClient(), new Gson(), config, tokens, "test-agent");
 	}
 
 	@After
@@ -98,7 +96,7 @@ public class GrottoApiClientTest
 	@Test
 	public void refusesToSendWithoutAToken() throws Exception
 	{
-		token = " ";
+		tokens.set(ACCOUNT, " ");
 
 		try
 		{
@@ -127,5 +125,72 @@ public class GrottoApiClientTest
 			assertEquals(502, e.getStatus());
 			assertTrue(e.isRetryable());
 		}
+	}
+
+	@Test
+	public void sendsEachAccountItsOwnToken() throws Exception
+	{
+		tokens.set(ALT, "igp_alt");
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{}}"));
+
+		client.getMe(ALT).get();
+
+		assertEquals("Bearer igp_alt", server.takeRequest().getHeader("Authorization"));
+	}
+
+	@Test
+	public void neverSendsAnotherAccountsToken()
+	{
+		try
+		{
+			client.getMe(ALT).get();
+			fail("expected an error");
+		}
+		catch (InterruptedException | ExecutionException e)
+		{
+			assertTrue(((ApiException) e.getCause()).isUnauthorized());
+			assertEquals(0, server.getRequestCount());
+		}
+	}
+
+	@Test
+	public void dropsTheTokenWhenTheServerSaysItIsForAnotherAccount()
+	{
+		AccountIdentity[] cleared = new AccountIdentity[1];
+		tokens.setOnCleared(account -> cleared[0] = account);
+		server.enqueue(new MockResponse().setResponseCode(403)
+			.setBody("{\"success\":false,\"error\":\"This token is for a different account.\",\"code\":\"token_account_mismatch\"}"));
+
+		try
+		{
+			client.postBlocking(GrottoApiClient.API_PREFIX + "/events", ACCOUNT, new Object(), Object.class);
+			fail("expected an error");
+		}
+		catch (ApiException e)
+		{
+			assertTrue(e.isTokenRejectedForAccount());
+			assertTrue(e.isClientBlocked());
+		}
+
+		assertEquals("", tokens.get(ACCOUNT));
+		assertEquals(ACCOUNT, cleared[0]);
+	}
+
+	@Test
+	public void keepsTheTokenOnOtherRefusals()
+	{
+		server.enqueue(new MockResponse().setResponseCode(403).setBody("{\"success\":false,\"error\":\"Nope\"}"));
+
+		try
+		{
+			client.postBlocking(GrottoApiClient.API_PREFIX + "/events", ACCOUNT, new Object(), Object.class);
+			fail("expected an error");
+		}
+		catch (ApiException e)
+		{
+			assertEquals(403, e.getStatus());
+		}
+
+		assertEquals("igp_test", tokens.get(ACCOUNT));
 	}
 }

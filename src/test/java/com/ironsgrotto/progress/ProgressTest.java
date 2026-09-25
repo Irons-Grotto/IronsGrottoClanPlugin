@@ -44,7 +44,7 @@ public class ProgressTest
 
 		RecordingApi()
 		{
-			super(null, new Gson(), null, "test");
+			super(null, new Gson(), null, null, "test");
 		}
 
 		@Override

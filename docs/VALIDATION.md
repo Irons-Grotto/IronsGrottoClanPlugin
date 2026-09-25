@@ -21,7 +21,7 @@ docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='ow
 - [ ] `cd ~/irons-grotto-1/.claude/worktrees/plugin-api/apps/web && yarn dev` (https://localhost:3000)
 - [ ] `cd ~/IronsGrottoClanPlugin && node scripts/dev-relay.mjs` (http://localhost:3001)
 - [ ] `./gradlew shadowJar && java -ea -jar build/libs/irons-grotto-1.0.0-all.jar --developer-mode`
-- [ ] Plugin settings: paste your token; **Advanced → Server URL = `http://localhost:3001`**;
+- [ ] Plugin settings: **Advanced → Server URL = `http://localhost:3001`**; log in, then paste your token into the side panel;
       Advanced → **Developer tools** on.
 
 Handy query (latest ledger rows):
@@ -42,8 +42,13 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
       removed). Shows the running one with its **top 5** from TempleOSRS and time left, and a small
       **"Next: Boss of the Week — Zulrah · in …"** line under it.
 - [ ] No Refresh or Sync buttons; the footer says progress syncs on login and logout.
-- [ ] Revoke the token on `/plugin`; within ~5 min (or on next login) the panel says "Your plugin
-      token was not accepted…". Paste a fresh one → recovers without a restart.
+- [ ] Revoke the token on `/plugin`; within ~5 min (or on next login) the panel says "Token not
+      accepted. Paste a new one." with a paste box. Paste a fresh one → recovers without a restart.
+- [ ] **One token, one account.** Log in to a second account on the same client: the panel asks
+      for a token for that account (the first account's is never sent). Paste the first
+      account's token → chat and panel say "That token is for a different account", the token is
+      removed for the second account only, and the first account still works after switching back.
+      `/plugin` shows each token's account name.
 
 ## 3. Event ledger via developer tools — account A
 - [ ] Click **Kill count**, **Drop**, **Clog slot**, **Pet**, **Kill + drop**. Each appears under

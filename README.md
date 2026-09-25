@@ -13,10 +13,14 @@ The Irons Grotto clan plugin.
 This plugin sends data about your account to the Irons Grotto server (ironsgrotto.xyz).
 
 ## Setup
-1. Get a token at <https://ironsgrotto.xyz/plugin>. New members get one on the first step of
+1. Log in to the game.
+2. Get a token at <https://ironsgrotto.xyz/plugin>. New members get one on the first step of
    <https://ironsgrotto.xyz/join>.
-2. Paste it into the plugin's settings and log in.
-3. Open your collection log once.
+3. Paste it into the Irons Grotto side panel.
+4. Open your collection log once.
+
+Each account needs its own token. Tokens are saved per account, and follow the account to other
+computers if you're signed in to RuneLite with profile sync on.
 
 For log slots to be recorded as you get them, turn on the in-game chat notification for new
 collection log items. Raid, clue and other non-NPC loot needs RuneLite's Loot Tracker plugin on.

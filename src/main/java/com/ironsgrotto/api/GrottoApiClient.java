@@ -28,8 +28,9 @@ import okhttp3.ResponseBody;
 /**
  * The only thing in the plugin that talks to the Irons Grotto server.
  *
- * Every request carries the member's plugin token and the account it speaks
- * for; the server refuses an account that is not the token owner's. Responses
+ * Every request carries the account it speaks for and that account's plugin
+ * token (see {@link TokenStore}). When the server says the token can never
+ * speak for the account, the token is dropped here, in one place. Responses
  * use the backend's envelope, {@code {success, data}} or {@code {success, error}}.
  */
 @Slf4j
@@ -53,25 +54,22 @@ public class GrottoApiClient
 	private final OkHttpClient http;
 	private final Gson gson;
 	private final IronsGrottoConfig config;
+	private final TokenStore tokens;
 	private final String userAgent;
 
 	@Inject
-	GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config)
+	GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config, TokenStore tokens)
 	{
-		this(http, gson, config, "IronsGrottoPlugin/" + PLUGIN_VERSION);
+		this(http, gson, config, tokens, "IronsGrottoPlugin/" + PLUGIN_VERSION);
 	}
 
-	protected GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config, String userAgent)
+	protected GrottoApiClient(OkHttpClient http, Gson gson, IronsGrottoConfig config, TokenStore tokens, String userAgent)
 	{
 		this.http = http;
 		this.gson = gson;
 		this.config = config;
+		this.tokens = tokens;
 		this.userAgent = userAgent;
-	}
-
-	public boolean hasToken()
-	{
-		return !config.pluginToken().trim().isEmpty();
 	}
 
 	public CompletableFuture<MeResponse> getMe(AccountIdentity identity)
@@ -97,7 +95,7 @@ public class GrottoApiClient
 
 		try (Response response = http.newCall(request).execute())
 		{
-			return parse(response, responseType);
+			return parse(response, identity, responseType);
 		}
 		catch (IOException e)
 		{
@@ -114,7 +112,7 @@ public class GrottoApiClient
 
 		try (Response response = http.newCall(request).execute())
 		{
-			return parse(response, JsonObject.class);
+			return parse(response, identity, JsonObject.class);
 		}
 		catch (IOException e)
 		{
@@ -136,7 +134,7 @@ public class GrottoApiClient
 
 		try (Response response = http.newCall(request).execute())
 		{
-			parse(response, Object.class);
+			parse(response, identity, Object.class);
 		}
 		catch (IOException e)
 		{
@@ -172,7 +170,7 @@ public class GrottoApiClient
 			{
 				try (response)
 				{
-					future.complete(parse(response, responseType));
+					future.complete(parse(response, identity, responseType));
 				}
 				catch (ApiException e)
 				{
@@ -194,7 +192,7 @@ public class GrottoApiClient
 
 	private Request.Builder requestBuilder(String path, AccountIdentity identity) throws ApiException
 	{
-		String token = config.pluginToken().trim();
+		String token = tokens.get(identity);
 		if (token.isEmpty())
 		{
 			throw new ApiException(401, "No plugin token set");
@@ -217,7 +215,7 @@ public class GrottoApiClient
 			.header("User-Agent", userAgent);
 	}
 
-	private <T> T parse(Response response, Type type) throws ApiException
+	private <T> T parse(Response response, AccountIdentity identity, Type type) throws ApiException
 	{
 		JsonObject envelope = readEnvelope(response);
 
@@ -228,7 +226,15 @@ public class GrottoApiClient
 				: response.code() == 404
 					? config.apiBaseUrl() + " doesn't support the plugin (404). Check the Server URL setting."
 					: "Server returned " + response.code();
-			throw new ApiException(response.isSuccessful() ? 500 : response.code(), error);
+			String code = envelope != null && envelope.has("code") && envelope.get("code").isJsonPrimitive()
+				? envelope.get("code").getAsString()
+				: null;
+			ApiException failure = new ApiException(response.isSuccessful() ? 500 : response.code(), error, code);
+			if (failure.isTokenRejectedForAccount())
+			{
+				tokens.clearRejected(identity);
+			}
+			throw failure;
 		}
 
 		JsonElement data = envelope.get("data");

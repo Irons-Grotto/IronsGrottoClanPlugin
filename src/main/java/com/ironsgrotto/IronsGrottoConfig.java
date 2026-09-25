@@ -12,13 +12,6 @@ public interface IronsGrottoConfig extends Config
 	String DEFAULT_API_BASE_URL = "https://ironsgrotto.xyz";
 
 	@ConfigSection(
-		name = "Account",
-		description = "Your Irons Grotto token",
-		position = 0
-	)
-	String accountSection = "account";
-
-	@ConfigSection(
 		name = "Notifications",
 		description = "What the plugin shows in game",
 		position = 1
@@ -32,19 +25,6 @@ public interface IronsGrottoConfig extends Config
 		closedByDefault = true
 	)
 	String advancedSection = "advanced";
-
-	@ConfigItem(
-		keyName = "pluginToken",
-		name = "Plugin token",
-		description = "Generate one at ironsgrotto.xyz/plugin",
-		secret = true,
-		section = accountSection,
-		position = 0
-	)
-	default String pluginToken()
-	{
-		return "";
-	}
 
 	@ConfigItem(
 		keyName = "chatFeedback",

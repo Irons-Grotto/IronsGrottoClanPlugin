@@ -22,12 +22,22 @@ sides; the plugin's DTOs are in `src/main/java/com/ironsgrotto/api/model/`.
 | `X-Player-Name` | Local player name (NBSP → space) |
 | `X-Plugin-Version` | Plugin release, `major.minor.patch` — required |
 
-Server (`authenticatePluginRequest`): token live → per-token rate limit (120/min) → account
-link. Link refused (403) if a clan player with that RSN belongs to another Discord user, or the
-account hash is already linked to another Discord user. Otherwise linked; `playerName` is null
-for non-members.
+Server (`authenticatePluginRequest`): token live → per-token rate limit (120/min) → token bound
+to this account (or unbound) → account link → bind an unbound token. Refused (403) if:
+- the token is bound to a different account hash — code `token_account_mismatch`. **One token,
+  one account**: the first account to use a token owns it (`plugin_tokens.account_hash`);
+- a clan player with that RSN belongs to another Discord user, or the account hash is already
+  linked to another Discord user — code `account_not_yours`.
 
-Envelope: `{ "success": true, "data": … }` or `{ "success": false, "error": "…" }`.
+Otherwise linked; `playerName` is null for non-members.
+
+Envelope: `{ "success": true, "data": … }` or `{ "success": false, "error": "…", "code"?: "…" }`.
+`code` is set only where the plugin acts on it: on `token_account_mismatch` or
+`account_not_yours` it deletes the token it holds for that account and asks for a new one.
+
+Plugin storage: tokens live per game account in RuneLite's RS-profile config (`TokenStore`),
+looked up by account hash, so a token is never sent for another account (e.g. a friend on the same
+client) and syncs across machines with RuneLite profile sync.
 Status: 400 bad headers/body · 401 token · 403 ownership · 426 plugin too old · 429 rate limit (`Retry-After`) · 5xx.
 
 ## `GET /api/plugin/v1/me`
@@ -92,8 +102,14 @@ Any subset of (schema: `apps/web/app/schemas/plugin-progress.ts`):
   "combatAchievements": { "points", "tier": "None|Easy|…|Grandmaster" },
   "diaries": { "Ardougne": "None|Easy|Medium|Hard|Elite", … },
   "quests": { "questPoints", "completed": ["Cook's Assistant", …] },
-  "clues": { "Hard": 12 } }
+  "clues": { "Hard": 12 },
+  "settings": { "collectionLogChat": true, "lootTracker": true } }
 ```
+`settings` is not progress: the client settings tracking depends on (the game's new collection log
+item chat message; RuneLite's Loot Tracker plugin). Stored as the account's `settings` snapshot for
+onboarding, never applied. Partial kinds are merged into the stored snapshot: a counters-only
+`collectionLog` keeps the stored item list, a single item joins it, a `complete` list replaces it;
+`clues` tiers merge.
 Always stored as the account's latest snapshot. Members: merged upwards-only into the ranking
 record, rescored, category marked source `plugin`. Response `data`:
 `{ member, applied: [categories], points, rank }`.

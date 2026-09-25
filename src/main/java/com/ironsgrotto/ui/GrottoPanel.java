@@ -18,12 +18,14 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JPasswordField;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
@@ -58,6 +60,7 @@ public class GrottoPanel extends PluginPanel
 	}
 	private final Deque<OutboxEntry> recent = new ArrayDeque<>();
 	private final String tokenUrl;
+	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
 
@@ -115,14 +118,47 @@ public class GrottoPanel extends PluginPanel
 		});
 	}
 
-	public void showNoToken()
+	/** Called with a token the member pasted into the panel. */
+	public void setOnTokenEntered(Consumer<String> onTokenEntered)
+	{
+		this.onTokenEntered = onTokenEntered;
+	}
+
+	/**
+	 * Asks for the logged-in account's token. Tokens are per account, so this
+	 * names the account it is for.
+	 *
+	 * @param problem why the last token was dropped, or null
+	 */
+	public void showNoToken(String rsn, @Nullable String problem)
 	{
 		onEdt(() ->
 		{
-			status("");
+			status(problem == null ? "" : "<html>" + escape(problem) + "</html>");
 			accountSection.removeAll();
-			accountSection.add(heading("Link your account"));
-			accountSection.add(wrapped("Generate a token on the Irons Grotto site and paste it into this plugin's settings."));
+			accountSection.add(heading("Connect " + rsn));
+			accountSection.add(wrapped("Paste a token from the Irons Grotto site. Each account needs its own."));
+			accountSection.add(Box.createVerticalStrut(6));
+
+			JPasswordField field = new JPasswordField();
+			field.setAlignmentX(Component.LEFT_ALIGNMENT);
+			field.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, field.getPreferredSize().height));
+			JButton save = new JButton("Save token");
+			save.setAlignmentX(Component.LEFT_ALIGNMENT);
+			Runnable submit = () ->
+			{
+				String token = new String(field.getPassword()).trim();
+				if (!token.isEmpty())
+				{
+					onTokenEntered.accept(token);
+				}
+			};
+			field.addActionListener(e -> submit.run());
+			save.addActionListener(e -> submit.run());
+
+			accountSection.add(field);
+			accountSection.add(Box.createVerticalStrut(6));
+			accountSection.add(save);
 			accountSection.add(Box.createVerticalStrut(6));
 			accountSection.add(linkButton("Get a token", tokenUrl));
 			accountSection.setVisible(true);
