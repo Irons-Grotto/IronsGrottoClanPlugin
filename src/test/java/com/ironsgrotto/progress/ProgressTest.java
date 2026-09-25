@@ -136,4 +136,49 @@ public class ProgressTest
 
 		assertFalse(uploader.hasPending());
 	}
+
+	@Test
+	public void tellsWhichUploadsCarriedTheFullLog()
+	{
+		RecordingApi api = new RecordingApi();
+		ProgressUploader uploader = new ProgressUploader(api, Clock.systemUTC());
+		List<JsonObject> sent = new ArrayList<>();
+		uploader.setOnSent(sent::add);
+		JsonObject full = new JsonObject();
+		full.addProperty("complete", true);
+
+		assertTrue(uploader.submit(ACCOUNT, "collectionLog", full));
+		uploader.flush();
+		// The same log again: nothing to send, so the caller knows it's already there.
+		assertFalse(uploader.submit(ACCOUNT, "collectionLog", full));
+
+		assertEquals(1, sent.size());
+		assertTrue(ProgressSync.isFullLog(sent.get(0)));
+		JsonObject countsOnly = new JsonObject();
+		countsOnly.add("collectionLog", new JsonObject());
+		assertFalse(ProgressSync.isFullLog(countsOnly));
+		assertFalse(ProgressSync.isFullLog(new JsonObject()));
+	}
+
+	@Test
+	public void reportsARefusedUploadButNotARetriedOne()
+	{
+		RecordingApi api = new RecordingApi();
+		ProgressUploader uploader = new ProgressUploader(api, Clock.systemUTC());
+		List<JsonObject> dropped = new ArrayList<>();
+		uploader.setOnDropped(dropped::add);
+
+		api.failWith = new ApiException(503, "down");
+		uploader.submit(ACCOUNT, "skills", skills(1500));
+		uploader.flush();
+		assertTrue(dropped.isEmpty());
+
+		RecordingApi refusing = new RecordingApi();
+		ProgressUploader other = new ProgressUploader(refusing, Clock.systemUTC());
+		other.setOnDropped(dropped::add);
+		refusing.failWith = new ApiException(400, "bad");
+		other.submit(ACCOUNT, "skills", skills(1500));
+		other.flush();
+		assertEquals(1, dropped.size());
+	}
 }

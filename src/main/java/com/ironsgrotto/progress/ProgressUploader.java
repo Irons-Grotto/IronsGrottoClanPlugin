@@ -38,6 +38,8 @@ public class ProgressUploader
 	private long nextAttemptAt;
 	private long backoffMs = INITIAL_BACKOFF_MS;
 	private volatile Consumer<JsonObject> onSynced = result -> { };
+	private volatile Consumer<JsonObject> onSent = body -> { };
+	private volatile Consumer<JsonObject> onDropped = body -> { };
 
 	@Inject
 	ProgressUploader(GrottoApiClient api)
@@ -57,8 +59,24 @@ public class ProgressUploader
 		this.onSynced = onSynced;
 	}
 
-	/** Queues one category's latest reading; a no-op if it matches what was last sent. */
-	public synchronized void submit(AccountIdentity account, String category, JsonElement value)
+	/** Called with each request body the server accepted. */
+	public void setOnSent(Consumer<JsonObject> onSent)
+	{
+		this.onSent = onSent;
+	}
+
+	/** Called with each request body the server refused outright, which is not retried. */
+	public void setOnDropped(Consumer<JsonObject> onDropped)
+	{
+		this.onDropped = onDropped;
+	}
+
+	/**
+	 * Queues one category's latest reading.
+	 *
+	 * @return false if it matches what was last sent, so there is nothing to send
+	 */
+	public synchronized boolean submit(AccountIdentity account, String category, JsonElement value)
 	{
 		if (!account.equals(pendingAccount))
 		{
@@ -70,7 +88,7 @@ public class ProgressUploader
 
 		if (Objects.equals(lastSent.get(category), value))
 		{
-			return;
+			return false;
 		}
 
 		JsonObject queued = pending.get(category);
@@ -89,6 +107,7 @@ public class ProgressUploader
 		JsonObject part = new JsonObject();
 		part.add(category, value);
 		pending.put(category, part);
+		return true;
 	}
 
 	/** Sends everything waiting, in one request. Blocking; background threads only. */
@@ -134,6 +153,7 @@ public class ProgressUploader
 				backoffMs = INITIAL_BACKOFF_MS;
 				nextAttemptAt = 0;
 			}
+			onSent.accept(body);
 			onSynced.accept(result);
 		}
 		catch (ApiException e)
@@ -150,6 +170,10 @@ public class ProgressUploader
 					log.warn("Server refused progress ({}), dropping it: {}", body.keySet(), e.getMessage());
 					pending.clear();
 				}
+			}
+			if (!e.isRetryable() && !e.isClientBlocked())
+			{
+				onDropped.accept(body);
 			}
 		}
 	}

@@ -9,32 +9,33 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPreFired;
-import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 
 /**
- * Reads the whole collection log when the player opens it.
+ * Reads the whole collection log when the member presses the Grotto button on
+ * the log ({@link CollectionLogButton}).
  *
- * The log only draws the page being viewed, so on opening it this briefly
- * toggles the log's own search — which draws every obtained item at once —
- * then closes it again. Each drawn item runs a client script whose arguments
- * are the item id and quantity; those are collected until they stop coming,
- * and sent as one complete snapshot. The WikiSync plugin reads the log the
- * same way.
+ * The log only draws the page being viewed, so this briefly toggles the log's
+ * own search, which draws every obtained item at once, then closes it again.
+ * Each drawn item runs a client script whose arguments are the item id and
+ * quantity; those are collected until they stop coming, and sent as one
+ * complete snapshot. WikiSync and TempleOSRS read the log the same way, from
+ * their own buttons in the same spot.
  *
- * At most once per {@link #MIN_INTERVAL_MS} unless the obtained count moved.
+ * ⚠️ Only ever from the member's click, never by itself on opening the log.
  */
 @Slf4j
 @Singleton
 public class CollectionLogSync
 {
-	static final long MIN_INTERVAL_MS = 30 * 60_000;
 	/** Ticks without a new item before the capture is taken as finished. */
 	private static final int QUIET_TICKS = 2;
 	/** Give up on a capture that never produced anything. */
@@ -48,9 +49,10 @@ public class CollectionLogSync
 	private boolean capturing;
 	private int ticksSinceLastItem;
 	private int ticksCapturing;
-	private long lastSyncAt;
-	private int lastSyncObtained = -1;
+	/** From the click until the server has the log, or it failed. */
+	private volatile boolean syncing;
 	private volatile Consumer<JsonObject> onSnapshot = snapshot -> { };
+	private volatile Consumer<String> onMessage = message -> { };
 
 	@Inject
 	CollectionLogSync(Client client, ClientThread clientThread, ItemManager itemManager)
@@ -65,33 +67,66 @@ public class CollectionLogSync
 		this.onSnapshot = onSnapshot;
 	}
 
-	@Subscribe
-	public void onWidgetLoaded(WidgetLoaded event)
+	/** Called with a line for the member's chat about how the sync went. */
+	public void setOnMessage(Consumer<String> onMessage)
 	{
-		if (event.getGroupId() != InterfaceID.COLLECTION || capturing)
+		this.onMessage = onMessage;
+	}
+
+	/** The member pressed the button. Client thread, with the log open. */
+	public void requestSync()
+	{
+		if (syncing)
 		{
+			onMessage.accept("Your collection log is already syncing.");
 			return;
 		}
-
-		int obtained = client.getVarpValue(net.runelite.api.gameval.VarPlayerID.COLLECTION_COUNT);
-		boolean recent = System.currentTimeMillis() - lastSyncAt < MIN_INTERVAL_MS;
-		if (recent && obtained == lastSyncObtained)
+		if (client.getWidget(InterfaceID.Collection.SEARCH_TOGGLE) == null)
 		{
 			return;
 		}
 
 		captured.clear();
 		capturing = true;
+		syncing = true;
 		ticksSinceLastItem = 0;
 		ticksCapturing = 0;
+		onMessage.accept("Syncing your collection log…");
 
-		// After the interface has finished building: open the search (which
-		// draws every obtained item), then close it again.
-		clientThread.invokeLater(() ->
+		// Open the search (which draws every obtained item), then close it again.
+		client.menuAction(-1, InterfaceID.Collection.SEARCH_TOGGLE, MenuAction.CC_OP, 1, -1, "Search", null);
+		client.runScript(GameIds.SCRIPT_COLLECTION_SEARCH_CLOSE);
+	}
+
+	/** The server accepted the complete log. Any thread. */
+	public void onSent()
+	{
+		if (syncing)
 		{
-			client.menuAction(-1, InterfaceID.Collection.SEARCH_TOGGLE, MenuAction.CC_OP, 1, -1, "Search", null);
-			client.runScript(GameIds.SCRIPT_COLLECTION_SEARCH_CLOSE);
-		});
+			syncing = false;
+			onMessage.accept("Collection log synced.");
+		}
+	}
+
+	/** The log could not be delivered: no account, or the server refused it. Any thread. */
+	public void onNotSent()
+	{
+		if (syncing)
+		{
+			syncing = false;
+			onMessage.accept("Couldn't sync your collection log. Try again.");
+		}
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.HOPPING)
+		{
+			// The next account starts fresh; a log still uploading lands on its own.
+			capturing = false;
+			syncing = false;
+		}
 	}
 
 	@Subscribe
@@ -138,6 +173,8 @@ public class CollectionLogSync
 		if (captured.isEmpty())
 		{
 			log.debug("Collection log sync drew no items");
+			syncing = false;
+			onMessage.accept("Couldn't read your collection log. Try again.");
 			return;
 		}
 
@@ -155,8 +192,7 @@ public class CollectionLogSync
 		snapshot.add("items", items);
 		snapshot.addProperty("complete", true);
 
-		lastSyncAt = System.currentTimeMillis();
-		lastSyncObtained = client.getVarpValue(net.runelite.api.gameval.VarPlayerID.COLLECTION_COUNT);
+		// Still SYNCING: done once the server has it (onSent).
 		onSnapshot.accept(snapshot);
 	}
 }

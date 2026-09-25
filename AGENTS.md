@@ -66,8 +66,11 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   side of the chat message, so match it against the message's name before trusting it.
 - The full collection log: the log only draws the open page, so `CollectionLogSync` toggles the
   log's own search (draws every obtained item), collects script 4100's args (item id, quantity),
-  then closes the search with script 2240. WikiSync does the same. Plugin Hub reviewers may
-  question it.
+  then closes the search with script 2240. WikiSync and TempleOSRS use the same calls. **Only on the
+  member's click**: the "Grotto" button `CollectionLogButton` adds to the log header, beside
+  search. WikiSync and Temple add theirs in the same row and `deleteAllChildren` on the log's
+  setup script (7797), so ours is added after theirs (`@Subscribe(priority = -1)`), goes left of
+  whatever is already in the row, and only ever deletes widgets when all of them are ours.
 - Prefer `net.runelite.api.gameval.*` (`VarbitID`, `VarPlayerID`, `InterfaceID`) over the
   deprecated `Varbits`/`VarPlayer`. Game ids RuneLite doesn't name go in `progress/GameIds.java`.
 - To confirm a constant or signature, read the jar Gradle resolved, don't guess:

@@ -86,7 +86,7 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
   2. Log in → done when the account links; show the RSN seen so the member confirms (pick an alt
      if several link).
   3. Progress read → login snapshot lands; show total level, CA tier, clog count.
-  4. Open collection log → full `collection_log` snapshot lands; show slot count.
+  4. Open collection log, press its Grotto button → full `collection_log` snapshot lands.
   5. Settings check → plugin reports whether the "new collection log item" chat notification and
      RuneLite Loot Tracker are on; ask the member to fix either.
   6. Account created from the plugin snapshots (already stored per account hash for prospects),
@@ -158,7 +158,6 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - In-game rename: Temple refresh fails for the old name until the member renames on the site;
   nothing prompts them.
 - CA tier precedence is read-then-write (negligible race).
-- Collection log sync toggles the log's search (same as WikiSync); Plugin Hub reviewers may object.
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log

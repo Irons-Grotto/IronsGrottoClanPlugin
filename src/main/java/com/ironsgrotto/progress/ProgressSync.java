@@ -26,8 +26,9 @@ import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.util.Text;
 
 /**
- * Decides when account progress is sent. There is no button: it happens by
- * itself, at the moments that matter.
+ * Decides when account progress is sent. It happens by itself, at the
+ * moments that matter, except the full collection log, which the member
+ * syncs from the side panel.
  *
  * - **Login** — a few ticks in (varbits arrive after the login tick): skills,
  *   diaries, combat achievements, quests and the collection log's counters.
@@ -37,8 +38,8 @@ import net.runelite.client.util.Text;
  *   taken quietly (in memory, not uploaded) every minute while playing.
  * - **Events that change standing** — a new collection log slot or a pet is
  *   sent straight away, and the panel refreshes when the server has it.
- * - **Opening the collection log** — the whole item list (see
- *   {@link CollectionLogSync}).
+ * - **"Sync collection log"** in the side panel, with the log open — the
+ *   whole item list (see {@link CollectionLogSync}).
  * - **Client settings** tracking depends on — on login and whenever the
  *   member changes one, so onboarding sees the fix straight away.
  *
@@ -62,8 +63,11 @@ public class ProgressSync
 	private final ItemManager itemManager;
 	private final SyncExecutor executor;
 	private final ClientThread clientThread;
+	private final CollectionLogSync collectionLog;
 
 	private AccountIdentity account;
+	/** The account whose full log is on its way to the server, if one is. */
+	private volatile AccountIdentity awaitingFullLog;
 	private int ticksLoggedIn;
 	/** The latest cheap reading, for logout; null until the first one. */
 	private JsonObject lastReading;
@@ -82,7 +86,10 @@ public class ProgressSync
 		this.uploader = uploader;
 		this.itemManager = itemManager;
 		this.executor = executor;
+		this.collectionLog = collectionLog;
 		collectionLog.setOnSnapshot(this::onCollectionLog);
+		uploader.setOnSent(this::onProgressSent);
+		uploader.setOnDropped(this::onProgressDropped);
 	}
 
 	@Subscribe
@@ -292,6 +299,7 @@ public class ProgressSync
 		AccountIdentity current = session.getIdentity();
 		if (current == null)
 		{
+			collectionLog.onNotSent();
 			return;
 		}
 
@@ -301,6 +309,45 @@ public class ProgressSync
 			snapshot.add("obtained", counts.get("obtained"));
 			snapshot.add("total", counts.get("total"));
 		}
-		uploader.submit(current, "collectionLog", snapshot);
+		if (!uploader.submit(current, "collectionLog", snapshot))
+		{
+			// The same full log already reached the server this session.
+			collectionLog.onSent();
+			return;
+		}
+		awaitingFullLog = current;
+		executor.execute(uploader::flush);
+	}
+
+	private void onProgressSent(JsonObject body)
+	{
+		AccountIdentity waiting = awaitingFullLog;
+		if (waiting != null && isFullLog(body))
+		{
+			awaitingFullLog = null;
+			// Only mark it synced for the account still logged in: the mark
+			// is saved to the logged-in account's profile.
+			if (waiting.equals(session.getIdentity()))
+			{
+				collectionLog.onSent();
+			}
+		}
+	}
+
+	private void onProgressDropped(JsonObject body)
+	{
+		if (awaitingFullLog != null && isFullLog(body))
+		{
+			awaitingFullLog = null;
+			collectionLog.onNotSent();
+		}
+	}
+
+	/** Whether an upload carried a complete collection log, not just its counters or one slot. */
+	static boolean isFullLog(JsonObject body)
+	{
+		JsonObject log = body.has("collectionLog") && body.get("collectionLog").isJsonObject()
+			? body.getAsJsonObject("collectionLog") : null;
+		return log != null && log.has("complete") && log.get("complete").getAsBoolean();
 	}
 }

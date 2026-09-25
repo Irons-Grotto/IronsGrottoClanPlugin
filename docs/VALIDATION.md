@@ -75,7 +75,9 @@ log out and back in so the plugin picks it up. **Put it back to 1_000_000 afterw
 - [ ] ~5s after login the panel says **Progress synced HH:MM**.
 - [ ] Log out → a few seconds later `player_progress_sources.synced_at` moves (only if something
       changed during the session, e.g. xp). Close the client while logged in → same.
-- [ ] **Open your collection log** once, wait ~2s → another sync.
+- [ ] Open the collection log → a **Grotto** button right of search (left of WikiSync/Temple if
+      on). Opening alone sends nothing. Press it → chat "Syncing your collection log…", then
+      "Collection log synced."
 - [ ] Check the record:
       ```sh
       docker exec irons-grotto-pg psql -U grotto -c "select total_level, combat_achievement_tier, collection_log_count, collection_log_total, points, rank from players where player_name='Irons Grotto'" -c "select count(*) from player_acquired_items where player_name='Irons Grotto'" -c "select location, tier from player_achievement_diaries where player_name='Irons Grotto'" -c "select category, source, synced_at from player_progress_sources where player_name='Irons Grotto'"
@@ -90,7 +92,7 @@ One-time: `/Applications/RuneLite.app/Contents/MacOS/RuneLite --configure` → c
 (Undo afterwards: remove the argument, delete `~/.runelite/credentials.properties`.)
 - [ ] Panel: "Linked — not a clan member yet" and a **Join Irons Grotto** button.
 - [ ] Dev-tool events record with `player_name` empty (RSN shown instead).
-- [ ] Open the collection log → a full, real-sized log is stored but **not** applied to any player:
+- [ ] Open the collection log and press Grotto → a full, real-sized log is stored but **not** applied to any player:
       ```sh
       docker exec irons-grotto-pg psql -U grotto -c "select kind, jsonb_array_length(coalesce(data->'items','[]'::jsonb)) items, captured_at from plugin_progress_snapshots order by captured_at desc"
       ```
@@ -111,7 +113,8 @@ Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a *
 - [ ] Log in to the GIM account in the dev client, paste the token into the side panel. Within a
       few seconds: **Paste your token** and **Log in** tick (GIM's name shown), then **Read your
       progress** (total level, CA tier).
-- [ ] Open the collection log in game → **Open your collection log** ticks with the slot count.
+- [ ] Open the collection log and press **Grotto** → **Sync your collection log** ticks with the
+      slot count.
 - [ ] **Check your settings**: turn off RuneLite's Loot Tracker → the step warns and names it;
       turn it back on → ticks without a reload. Same for the game's collection log chat setting.
 - [ ] The page moves on by itself: Reading RuneLite, Temple, WikiSync, clan record → confirm.
@@ -139,8 +142,7 @@ Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a *
    the host (and leave `DEV_*` unset — they are ignored outside `next dev` regardless).
 4. **Plugin repo secret** `DISCORD_RELEASE_WEBHOOK` for the "Irons Grotto Plugin Update" announcer.
 5. **Plugin Hub submission** — see `docs/PLUGIN_HUB.md`. Needs the backend in production, this
-   repo public, and a fork of `runelite/plugin-hub`. Reviewer risk: the collection log sync briefly toggles the log's own
-   search (same technique as WikiSync). Fallback if refused: read pages as the member browses.
+   repo public, and a fork of `runelite/plugin-hub`. The collection log read is the member's click, as WikiSync's is.
 
 ## Known gaps
 - WikiSync is still needed for three notable-item checks that use combat achievement *task ids*
