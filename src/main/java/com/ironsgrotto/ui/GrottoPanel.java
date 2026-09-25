@@ -277,7 +277,9 @@ public class GrottoPanel extends PluginPanel
 				if (me.getJoinUrl() != null)
 				{
 					accountSection.add(Box.createVerticalStrut(6));
-					accountSection.add(linkButton("Join Irons Grotto", me.getJoinUrl()));
+					// Linked but not joined yet: they're partway through /join, so
+					// this takes them back to it rather than starting over.
+					accountSection.add(linkButton("Continue", me.getJoinUrl()));
 				}
 			}
 			else
