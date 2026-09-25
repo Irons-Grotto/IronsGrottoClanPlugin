@@ -137,6 +137,12 @@
 - [ ] Plugin Hub submission (user action; see VALIDATION.md "Needs you")
 
 ### M7 Plugin-first onboarding — **P0** (user, 2026-09-25)
+**Shape (user):** `/join` stays the single-page, phase-driven experience it is today
+(`JoinExperience`). It gains **one branch near the start** — "Do you play on RuneLite?" (or: the
+token step) — and **iff the member uses the plugin** it follows the plugin phases below;
+otherwise it continues into the existing scan flow unchanged. Both branches rejoin at the
+existing confirm → reveal → apply phases. No new pages, no separate route.
+
 **End state:** `/join` is built around the plugin. The member generates a token, and from then on
 the page is a live, interactive walkthrough that watches the plugin's data arrive and moves on by
 itself: each step says what to do in game, shows "waiting for your plugin…", and advances the
@@ -168,7 +174,8 @@ Design notes (not prescriptive):
   snapshots" path. The total-level gate, account type and clan-membership checks still apply
   (account type: Temple, or the plugin reading the game-mode varbit — see open gaps).
 - The plugin needs to report the two settings in step 5 (small additive v1 field).
-- Must degrade gracefully: any step can be skipped to fall back to the scan.
+- Must degrade gracefully: any plugin step can be abandoned to drop into the existing scan
+  branch (same SPA, same state), never a dead end.
 
 ## Open questions / decisions
 - **Only notable items and pets are stored** from plugin collection logs (user, 2026-09-25) — in
