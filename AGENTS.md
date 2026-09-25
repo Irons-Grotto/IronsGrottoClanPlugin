@@ -71,6 +71,8 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   search. WikiSync and Temple add theirs in the same row and `deleteAllChildren` on the log's
   setup script (7797), so ours is added after theirs (`@Subscribe(priority = -1)`), goes left of
   whatever is already in the row, and only ever deletes widgets when all of them are ours.
+  Turning Temple off runs its cleanup, which deletes every widget on the log (ours too), so
+  `CollectionLogButton` checks each tick while the log is open and puts itself back.
 - Prefer `net.runelite.api.gameval.*` (`VarbitID`, `VarPlayerID`, `InterfaceID`) over the
   deprecated `Varbits`/`VarPlayer`. Game ids RuneLite doesn't name go in `progress/GameIds.java`.
 - To confirm a constant or signature, read the jar Gradle resolved, don't guess:
