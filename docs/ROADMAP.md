@@ -83,11 +83,9 @@
 - `cd ~/irons-grotto-1/.claude/worktrees/plugin-api/apps/web && yarn dev` → https://localhost:3000
 - `node scripts/dev-relay.mjs` (this repo) → http://localhost:3001 for the plugin (Java won't trust
   the dev cert).
-- Plugin: `./gradlew shadowJar -PclientJar=irons-grotto-dev.jar` (never overwrite the jar a running
-  client uses; check `ps aux | grep irons-grotto` first), then
-  `java -ea -jar build/libs/irons-grotto-dev.jar --developer-mode`; settings → Advanced → Server
-  URL `http://localhost:3001`, Developer tools on. Log in, then paste a token in the side panel
-  (one per account).
+- Plugin: `scripts/dev-client.sh` (stops the dev client, rebuilds `irons-grotto-dev.jar`,
+  relaunches); settings → Advanced → Server URL `http://localhost:3001`, Developer tools on. Log
+  in, then paste a token in the side panel (one per account; it's checked and saved on paste).
 - Worktree `.env.local` is a copy of the main one plus: `DATABASE_URL` → local, `DEV_WAIVE_JOIN_
   REQUIREMENTS=true`, `DEV_LOCAL_UPLOADS=true`, local-only `CRON_SECRET` (trigger jobs by hand,
   e.g. `/api/reconcile-points`). Redis/Discord/Temple creds are real; `DISCORD_DROPS_CHANNEL_ID`
