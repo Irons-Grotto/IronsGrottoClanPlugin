@@ -181,21 +181,4 @@ public class ProgressTest
 		other.flush();
 		assertEquals(1, dropped.size());
 	}
-
-	@Test
-	public void syncStageFollowsTheLogAndThePhase()
-	{
-		java.time.Instant before = java.time.Instant.parse("2026-09-01T00:00:00Z");
-		assertEquals(CollectionLogSyncState.Stage.OPEN_LOG,
-			new CollectionLogSyncState(false, CollectionLogSyncState.Phase.IDLE, null).stage());
-		assertEquals(CollectionLogSyncState.Stage.READY,
-			new CollectionLogSyncState(true, CollectionLogSyncState.Phase.IDLE, before).stage());
-		// A running or finished sync shows as such whether the log is open or not.
-		assertEquals(CollectionLogSyncState.Stage.SYNCING,
-			new CollectionLogSyncState(false, CollectionLogSyncState.Phase.SYNCING, null).stage());
-		assertEquals(CollectionLogSyncState.Stage.SYNCED,
-			new CollectionLogSyncState(false, CollectionLogSyncState.Phase.SYNCED, before).stage());
-		assertTrue(new CollectionLogSyncState(true, CollectionLogSyncState.Phase.IDLE, null).isFirstSync());
-		assertFalse(new CollectionLogSyncState(true, CollectionLogSyncState.Phase.IDLE, before).isFirstSync());
-	}
 }

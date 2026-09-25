@@ -86,7 +86,7 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
   2. Log in → done when the account links; show the RSN seen so the member confirms (pick an alt
      if several link).
   3. Progress read → login snapshot lands; show total level, CA tier, clog count.
-  4. Open collection log, press Sync in the panel → full `collection_log` snapshot lands.
+  4. Open collection log, press its Grotto button → full `collection_log` snapshot lands.
   5. Settings check → plugin reports whether the "new collection log item" chat notification and
      RuneLite Loot Tracker are on; ask the member to fix either.
   6. Account created from the plugin snapshots (already stored per account hash for prospects),

@@ -5,7 +5,6 @@ import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
-import com.ironsgrotto.progress.CollectionLogSyncState;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -51,12 +50,10 @@ import net.runelite.client.util.LinkBrowser;
 public class GrottoPanel extends PluginPanel
 {
 	private static final Color ACCENT = new Color(76, 175, 120);
-	private static final Color NEEDS_ACTION = new Color(214, 76, 76);
 	private static final NumberFormat NUMBERS = NumberFormat.getIntegerInstance();
 
 	private final JLabel statusLabel = new JLabel();
 	private final JPanel accountSection = section();
-	private final JPanel collectionLogSection = section();
 	private final JPanel eventSection = section();
 	private final JPanel activitySection = section();
 	private final JLabel pendingLabel = new JLabel();
@@ -74,13 +71,6 @@ public class GrottoPanel extends PluginPanel
 	@Nullable
 	private String tokenPromptRsn;
 	private volatile Consumer<String> onTokenEntered = token -> { };
-	private volatile Runnable onSyncCollectionLog = () -> { };
-	@Nullable
-	private CollectionLogSyncState collectionLogState;
-	/** Whether the account shown is a clan member; prospects are sent back to Join when done. */
-	private boolean member;
-	/** A panel for a linked account is showing (not logged out or asking for a token). */
-	private boolean linked;
 
 	private static final int RECENT_LIMIT = 10;
 	/** Quiet time after the last keystroke before a token is checked. */
@@ -113,16 +103,13 @@ public class GrottoPanel extends PluginPanel
 
 		content.add(accountSection);
 		content.add(Box.createVerticalStrut(8));
-		content.add(collectionLogSection);
-		content.add(Box.createVerticalStrut(8));
 		content.add(eventSection);
 		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
 
-		// No "all good" status: the plugin syncs by itself, and the panel only
-		// speaks up when the member has something to do. The one button is
-		// the collection log sync, which has to be the member's own click.
+		// No buttons and no "all good" status: the plugin syncs by itself, and
+		// the panel only speaks up when the member has something to do.
 		pendingLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		content.add(pendingLabel);
 
@@ -138,26 +125,8 @@ public class GrottoPanel extends PluginPanel
 		onEdt(() ->
 		{
 			status("Log in to see your progress.");
-			linked = false;
 			accountSection.setVisible(false);
-			collectionLogSection.setVisible(false);
 			eventSection.setVisible(false);
-		});
-	}
-
-	/** Called when the member presses "Sync collection log". */
-	public void setOnSyncCollectionLog(Runnable onSyncCollectionLog)
-	{
-		this.onSyncCollectionLog = onSyncCollectionLog;
-	}
-
-	/** Redraws the collection log section; shown only for a linked account. */
-	public void showCollectionLog(CollectionLogSyncState state)
-	{
-		onEdt(() ->
-		{
-			collectionLogState = state;
-			renderCollectionLog();
 		});
 	}
 
@@ -225,8 +194,6 @@ public class GrottoPanel extends PluginPanel
 			accountSection.add(Box.createVerticalStrut(6));
 			accountSection.add(tokenLink);
 			accountSection.setVisible(true);
-			linked = false;
-			collectionLogSection.setVisible(false);
 			eventSection.setVisible(false);
 			revalidateAll();
 		});
@@ -322,124 +289,8 @@ public class GrottoPanel extends PluginPanel
 			}
 
 			accountSection.setVisible(true);
-			this.member = member != null;
-			linked = true;
-			renderCollectionLog();
 			revalidateAll();
 		});
-	}
-
-	private void renderCollectionLog()
-	{
-		collectionLogSection.removeAll();
-		CollectionLogSyncState state = collectionLogState;
-		if (!linked || state == null)
-		{
-			collectionLogSection.setVisible(false);
-			revalidateAll();
-			return;
-		}
-
-		CollectionLogSyncState.Stage stage = state.stage();
-		boolean first = state.isFirstSync();
-		collectionLogSection.add(heading(first && stage != CollectionLogSyncState.Stage.SYNCED
-			? "Sync your collection log" : "Collection log"));
-
-		Color edge = null;
-		switch (stage)
-		{
-			case OPEN_LOG:
-				if (first)
-				{
-					edge = NEEDS_ACTION;
-					collectionLogSection.add(coloured(wrapped("Open your collection log in game."), NEEDS_ACTION));
-				}
-				else
-				{
-					collectionLogSection.add(small(syncedAgo(state.getLastSyncedAt())));
-					collectionLogSection.add(wrapped("Open it in game to sync again."));
-				}
-				break;
-			case READY:
-				if (!first)
-				{
-					collectionLogSection.add(small(syncedAgo(state.getLastSyncedAt())));
-				}
-				collectionLogSection.add(Box.createVerticalStrut(6));
-				collectionLogSection.add(syncButton(true));
-				break;
-			case SYNCING:
-				collectionLogSection.add(small("Syncing…"));
-				collectionLogSection.add(Box.createVerticalStrut(6));
-				collectionLogSection.add(syncButton(false));
-				break;
-			case FAILED:
-				edge = NEEDS_ACTION;
-				collectionLogSection.add(coloured(wrapped(state.isLogOpen()
-					? "Couldn't read your log. Try again."
-					: "Couldn't read your log. Open it and try again."), NEEDS_ACTION));
-				if (state.isLogOpen())
-				{
-					collectionLogSection.add(Box.createVerticalStrut(6));
-					collectionLogSection.add(syncButton(true));
-				}
-				break;
-			case SYNCED:
-				edge = ACCENT;
-				collectionLogSection.add(coloured(small("Collection log synced."), ACCENT));
-				if (!member)
-				{
-					collectionLogSection.add(Box.createVerticalStrut(6));
-					collectionLogSection.add(linkButton("Back to Irons Grotto", joinUrl));
-				}
-				break;
-		}
-
-		// A coloured left edge: red when the member has to act, green when done.
-		collectionLogSection.setBorder(edge == null
-			? BorderFactory.createEmptyBorder(8, 8, 8, 8)
-			: BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(0, 3, 0, 0, edge),
-				BorderFactory.createEmptyBorder(8, 5, 8, 8)));
-		collectionLogSection.setVisible(true);
-		revalidateAll();
-	}
-
-	private JButton syncButton(boolean enabled)
-	{
-		JButton button = new JButton("Sync collection log");
-		button.setAlignmentX(Component.LEFT_ALIGNMENT);
-		button.setEnabled(enabled);
-		button.addActionListener(e ->
-		{
-			button.setEnabled(false);
-			onSyncCollectionLog.run();
-		});
-		return button;
-	}
-
-	/** "Synced 3d ago", for an account that has synced before. */
-	static String syncedAgo(@Nullable Instant at)
-	{
-		if (at == null)
-		{
-			return "";
-		}
-		Duration ago = Duration.between(at, Instant.now());
-		if (ago.toMinutes() < 1)
-		{
-			return "Synced just now";
-		}
-		long days = ago.toDays();
-		long hours = ago.toHours();
-		String span = days > 0 ? days + "d" : hours > 0 ? hours + "h" : ago.toMinutes() + "m";
-		return "Synced " + span + " ago";
-	}
-
-	private static JLabel coloured(JLabel label, Color colour)
-	{
-		label.setForeground(colour);
-		return label;
 	}
 
 	public void showEvents(ClanEventStatus events)

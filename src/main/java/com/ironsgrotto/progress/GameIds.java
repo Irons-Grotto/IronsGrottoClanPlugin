@@ -15,6 +15,25 @@ public final class GameIds
 	public static final int SCRIPT_COLLECTION_DRAW_ITEM = 4100;
 	/** Closes the collection log search after the sync has opened it. */
 	public static final int SCRIPT_COLLECTION_SEARCH_CLOSE = 2240;
+	/** Builds the collection log interface; custom buttons are added after it runs. */
+	public static final int SCRIPT_COLLECTION_SETUP = 7797;
+
+	/**
+	 * The stone button frame WikiSync and TempleOSRS draw on the collection
+	 * log: background, four corners, left, top, right and bottom edges. The
+	 * names are the deprecated {@code net.runelite.api.SpriteID}'s.
+	 */
+	public static final int[] BUTTON_SPRITES = {
+		297, // DIALOG_BACKGROUND
+		929, 930, 931, 932, // WORLD_MAP_BUTTON_METAL_CORNER_TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
+		933, 934, 935, 936, // WORLD_MAP_BUTTON_EDGE_LEFT, TOP, RIGHT, BOTTOM
+	};
+	/** {@link #BUTTON_SPRITES} under the mouse. */
+	public static final int[] BUTTON_SPRITES_HOVERED = {
+		897, // RESIZEABLE_MODE_SIDE_PANEL_BACKGROUND
+		921, 922, 923, 924, // EQUIPMENT_BUTTON_METAL_CORNER_*_HOVERED
+		925, 926, 927, 928, // EQUIPMENT_BUTTON_EDGE_*_HOVERED
+	};
 
 	/**
 	 * Diary location (as the server names it) → completion varbits for Easy,

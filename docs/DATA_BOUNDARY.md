@@ -7,7 +7,7 @@ the game wins, and the older sources may only add to it.
 
 | Data | Owner | Fallback / other writers | Rule |
 |---|---|---|---|
-| Collection log (items, counts) | **Plugin** (full list when the member presses Sync in the panel; single slots as they happen) | Temple — only when the plugin hasn't synced it in 30 days | Items: union, counts only rise; the plugin stores **only notable items and pets** — nowhere else either, snapshot included; names normalised to canonical. Temple's log isn't fetched at all while the plugin owns it |
+| Collection log (items, counts) | **Plugin** (full list when the member presses the Grotto button on the log; single slots as they happen) | Temple — only when the plugin hasn't synced it in 30 days | Items: union, counts only rise; the plugin stores **only notable items and pets** — nowhere else either, snapshot included; names normalised to canonical. Temple's log isn't fetched at all while the plugin owns it |
 | Levels / total XP | **Plugin** (login, logout) | Temple hiscores | Plugin-owned: Temple may raise, never lower |
 | Combat achievement tier | **Plugin** (CA points vs the game's tier thresholds) | WikiSync | Tier only rises |
 | Achievement diaries | **Plugin** (completion varbits) | WikiSync | Per-location tier only rises |
@@ -30,7 +30,7 @@ member who stops using RuneLite isn't frozen.
 - **Logout and closing the client**: the session's latest reading (it's re-read in memory each minute).
 - **Standing-changing events**: new collection log slot (with its item id) or a pet → sent at once, and
   the panel refreshes when the server has it.
-- **"Sync collection log"** in the side panel, with the log open: the full item list.
+- **The Grotto button** on the collection log: the full item list.
 - **Clue completed**: that tier's count.
 - Nothing unchanged is re-sent. Developer-tools test events never touch progress.
 

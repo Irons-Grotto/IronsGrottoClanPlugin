@@ -11,6 +11,7 @@ import com.ironsgrotto.ledger.LedgerRecorder;
 import com.ironsgrotto.outbox.Outbox;
 import com.ironsgrotto.outbox.OutboxEntry;
 import com.ironsgrotto.outbox.OutboxStore;
+import com.ironsgrotto.progress.CollectionLogButton;
 import com.ironsgrotto.progress.CollectionLogSync;
 import com.ironsgrotto.progress.ProgressSync;
 import com.ironsgrotto.progress.ProgressUploader;
@@ -116,6 +117,9 @@ public class IronsGrottoPlugin extends Plugin
 	@Inject
 	private CollectionLogSync collectionLogSync;
 
+	@Inject
+	private CollectionLogButton collectionLogButton;
+
 
 	private GrottoPanel panel;
 	private NavigationButton navButton;
@@ -141,9 +145,6 @@ public class IronsGrottoPlugin extends Plugin
 		executor.start();
 		panel = new GrottoPanel(siteUrl());
 		panel.setOnTokenEntered(this::checkToken);
-		panel.setOnSyncCollectionLog(collectionLogSync::requestSync);
-		GrottoPanel shown = panel;
-		collectionLogSync.setOnState(shown::showCollectionLog);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -175,6 +176,9 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.register(lootTracker);
 		eventBus.register(progressSync);
 		eventBus.register(collectionLogSync);
+		eventBus.register(collectionLogButton);
+		collectionLogSync.setOnMessage(this::say);
+		collectionLogButton.startUp();
 
 		progressUploader.setOnSynced(result ->
 		{
@@ -197,7 +201,8 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.unregister(lootTracker);
 		eventBus.unregister(progressSync);
 		eventBus.unregister(collectionLogSync);
-		collectionLogSync.setOnState(state -> { });
+		eventBus.unregister(collectionLogButton);
+		collectionLogButton.shutDown();
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
 		if (flushTask != null)
@@ -348,9 +353,6 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 
-		// This account's own sync state (its last sync is saved per account).
-		collectionLogSync.publish();
-
 		api.getMe(identity)
 			.thenAccept(me ->
 			{
@@ -467,7 +469,12 @@ public class IronsGrottoPlugin extends Plugin
 		{
 			return;
 		}
+		say(message);
+	}
 
+	/** A chat line the member asked for (a button they pressed), whatever the chat setting. */
+	private void say(String message)
+	{
 		String formatted = new ChatMessageBuilder()
 			.append("[Irons Grotto] ")
 			.append(message)
