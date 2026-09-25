@@ -25,6 +25,8 @@
   `irons-grotto-sync` thread.
 
 ## Next steps (in order)
+0. **Plugin Hub (M8):** deploy irons-grotto-1 #118, make this repo public, open the plugin-hub
+   PR (`docs/PLUGIN_HUB.md`). Backend to production (flag off) before the Hub merges it.
 1. **Record onboarding for feedback** (`scripts/reset-onboarding.sh EclipseGoon` for a clean
    run), then merge plugin PR #1 and push the backend branch with a PR.
 2. Needs you: `DISCORD_RELEASE_WEBHOOK` secret on the plugin repo (M6.5).
@@ -36,6 +38,22 @@
    instead of cached reading; CA task ids (retires WikiSync); game-mode varbit (account type); flag
    in-game renames for staff; notable-only filter on the Temple clog path; strip dashes from
    internal docs.
+
+## M8 Plugin Hub submission (user 2026-09-25)
+See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release steps).
+- [x] `build=standard`; the Hub's packager builds it (`scripts/hub-check.sh`, same bundle as
+  their CI). Only note: `support` unused, which the Hub allows.
+- [x] History checked for secrets before going public: only the local Docker `grotto:grotto`.
+- [ ] Production has no plugin API yet (`/api/plugin/v1/*` is 404). Ship the backend (flag off)
+  before a maintainer merges the Hub PR.
+- [x] Before going public: the public `POST /api/update-member-list` is gone; staff paste the
+  Clanmate Export JSON into Admin, Member list (admin sign-in). irons-grotto-1 PR #118, branch
+  `mm/lock-member-list`, worktree `.claude/worktrees/lock-member-list`. **Needs you:** try the
+  pane signed in, merge, and switch the exporter to JSON + clipboard.
+- [x] Fork `mattlm0831/plugin-hub`, branch `irons-grotto` pushed (clone at `~/plugin-hub-fork`),
+  manifest at `419bf38` (hub-check passes). User: submit without waiting for the backend.
+- [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public once #118 is deployed.
+- [ ] Merge plugin PR #2, point `commit=` at `main`, open the plugin-hub PR.
 
 ## M6.5 Repo up and running (user 2026-09-25)
 - [x] `AGENTS.md`: working knowledge (RuneLite storage/game state/threads, dev pitfalls).
@@ -141,10 +159,13 @@
   nothing prompts them.
 - CA tier precedence is read-then-write (negligible race).
 - Collection log sync toggles the log's search (same as WikiSync); Plugin Hub reviewers may object.
-- `POST /api/update-member-list` in irons-grotto-1 is unauthenticated (pre-existing).
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-25 (night): Plugin Hub prep (M8). `build=standard`, `docs/PLUGIN_HUB.md` (manifest
+  with the data warning a Hub reviewer asked another clan plugin for), `scripts/hub-check.sh`
+  (runs the Hub packager locally; passes). Locked the member list export (irons-grotto-1 #118)
+  before going public. Fork + branch ready; PR waits on the repo going public.
 - 2026-09-25 (late): token UX finished. Panel asks the public registration route: new accounts
   go to Join, registered ones to Get a token (`/plugin?name=` makes it on arrival, numbered
   names). Pasting is the only action (checked, then saved). Revoked tokens are dropped. Dev

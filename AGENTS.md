@@ -87,6 +87,10 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
 - The version is `build.gradle` `version` and `GrottoApiClient.PLUGIN_VERSION`. Nothing has
   shipped yet, so there is nothing to bump until the first Hub release. After that, bump both for
   every release. The server's `minimumPluginVersion` retires old releases with 426.
+- `build=standard`: the Hub swaps in its own `build.gradle` (client + Lombok, no tests), so main
+  code can't use anything else. `scripts/hub-check.sh` runs the Hub's packager on a pushed commit.
+- The Hub manifest's `warning` lists what the plugin sends (`docs/PLUGIN_HUB.md`). Sending
+  something new means updating it in the same release.
 
 ## Local development
 - Setup (Docker Postgres, backend dev server, dev relay, dev jar): ROADMAP "Local test setup".
