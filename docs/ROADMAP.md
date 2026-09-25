@@ -25,7 +25,8 @@
   `irons-grotto-sync` thread.
 
 ## Next steps (in order)
-1. **Try M7 in game** (VALIDATION 7b, user's GIM account), then merge the plugin PR.
+1. **Record onboarding for feedback** (`scripts/reset-onboarding.sh EclipseGoon` for a clean
+   run), then merge plugin PR #1 and push the backend branch with a PR.
 2. Needs you: `DISCORD_RELEASE_WEBHOOK` secret on the plugin repo (M6.5).
 3. Spot-check the unverified items above with `build/libs/irons-grotto-dev.jar`.
 4. "Needs you" list in VALIDATION.md: confirm BSD-2 license, backend PR (needs a `member-summary`
@@ -144,6 +145,12 @@
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-25 (late): token UX finished. Panel asks the public registration route: new accounts
+  go to Join, registered ones to Get a token (`/plugin?name=` makes it on arrival, numbered
+  names). Pasting is the only action (checked, then saved). Revoked tokens are dropped. Dev
+  tools removed. `scripts/dev-client.sh` (restart client safely), `scripts/reset-onboarding.sh`
+  (wipe an account locally to re-onboard). Dev relay only proxies `/api/plugin/*`. User happy
+  with the state; next is recording onboarding for friends' feedback, then merging PR #1.
 - 2026-09-25 (cont.): token model hardened (both repos); M7 backend groundwork (status endpoint,
   client settings, snapshot merge fix: counters-only uploads were wiping a prospect's stored log);
   M6.5 CI, AGENTS.md. Researched RuneLite storage (see AGENTS.md).
