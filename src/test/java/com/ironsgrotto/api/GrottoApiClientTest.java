@@ -13,6 +13,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -222,5 +223,28 @@ public class GrottoApiClientTest
 		}
 
 		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
+
+	@Test
+	public void asksWhetherANameIsRegisteredWithoutAnyCredentials() throws Exception
+	{
+		tokens.set(ACCOUNT, "igp_secret");
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":true}}"));
+
+		assertTrue(client.checkRegistration("Iron Dude").get());
+
+		RecordedRequest request = server.takeRequest();
+		assertEquals("/api/plugin/v1/public/registration?rsn=Iron%20Dude", request.getPath());
+		assertNull(request.getHeader("Authorization"));
+		assertNull(request.getHeader("X-Account-Hash"));
+		assertEquals(GrottoApiClient.PLUGIN_VERSION, request.getHeader("X-Plugin-Version"));
+	}
+
+	@Test
+	public void readsAnUnregisteredName() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":false}}"));
+
+		assertFalse(client.checkRegistration("Nobody Here").get());
 	}
 }

@@ -129,6 +129,8 @@ public class IronsGrottoPlugin extends Plugin
 
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
+	/** Names the site said are registered, this session. */
+	private final Map<String, Boolean> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
 	@Provides
 	IronsGrottoConfig provideConfig(ConfigManager configManager)
@@ -140,7 +142,7 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp()
 	{
 		executor.start();
-		panel = new GrottoPanel(tokenPageUrl(), devTools);
+		panel = new GrottoPanel(siteUrl(), devTools);
 		panel.setDevToolsVisible(config.developerTools());
 		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
@@ -292,6 +294,38 @@ public class IronsGrottoPlugin extends Plugin
 		return cause.getMessage() != null ? cause.getMessage() : "Can't reach the Irons Grotto server.";
 	}
 
+	/**
+	 * Whether a token-less account is on the site, so the panel sends it to
+	 * the right place. Asked once per name per session; a failed lookup
+	 * leaves the default ("Get a token") in place.
+	 */
+	private void lookUpRegistration(String rsn)
+	{
+		Boolean known = registrations.get(rsn);
+		if (known != null)
+		{
+			panel.showTokenSource(rsn, known);
+			return;
+		}
+
+		api.checkRegistration(rsn)
+			.thenAccept(registered ->
+			{
+				// Only a "yes" is kept: a new member who joins mid-session is
+				// asked again next time and sent to "Get a token".
+				if (registered)
+				{
+					registrations.put(rsn, true);
+				}
+				panel.showTokenSource(rsn, registered);
+			})
+			.exceptionally(error ->
+			{
+				log.debug("Could not check whether {} is registered", rsn, error);
+				return null;
+			});
+	}
+
 	/** The server will never take this account's token; ask for another. */
 	private void tokenRejected(AccountIdentity account)
 	{
@@ -347,6 +381,7 @@ public class IronsGrottoPlugin extends Plugin
 		if (!tokens.has(identity))
 		{
 			panel.showNoToken(identity.getRsn(), null);
+			lookUpRegistration(identity.getRsn());
 			return null;
 		}
 		return identity;
@@ -451,9 +486,9 @@ public class IronsGrottoPlugin extends Plugin
 			.build());
 	}
 
-	private String tokenPageUrl()
+	private String siteUrl()
 	{
-		return config.apiBaseUrl().replaceAll("/+$", "") + "/plugin";
+		return config.apiBaseUrl().replaceAll("/+$", "");
 	}
 
 	/** Body of {@code POST /api/plugin/events}; the account travels in headers. */

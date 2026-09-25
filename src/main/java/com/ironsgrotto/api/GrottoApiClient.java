@@ -88,6 +88,62 @@ public class GrottoApiClient
 		return getAsync(API_PREFIX + "/me", identity, MeResponse.class, candidate.trim());
 	}
 
+	/**
+	 * Whether a name is on the site at all. Public: no token and no account
+	 * headers, so it works before the member has a token.
+	 */
+	public CompletableFuture<Boolean> checkRegistration(String rsn)
+	{
+		CompletableFuture<Boolean> future = new CompletableFuture<>();
+		HttpUrl base = HttpUrl.parse(config.apiBaseUrl());
+		if (base == null)
+		{
+			future.completeExceptionally(new ApiException(0, "Invalid server URL: " + config.apiBaseUrl()));
+			return future;
+		}
+
+		Request request = new Request.Builder()
+			.url(base.newBuilder()
+				.encodedPath(API_PREFIX + "/public/registration")
+				.addQueryParameter("rsn", rsn)
+				.build())
+			.header("X-Plugin-Version", PLUGIN_VERSION)
+			.header("User-Agent", userAgent)
+			.get()
+			.build();
+
+		http.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				future.completeExceptionally(unreachable(call.request().url(), e));
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (response)
+				{
+					Registration registration = parse(response, null, Registration.class, false);
+					future.complete(registration != null && registration.registered);
+				}
+				catch (ApiException e)
+				{
+					future.completeExceptionally(e);
+				}
+			}
+		});
+
+		return future;
+	}
+
+	/** {@code GET /public/registration}'s data. */
+	private static class Registration
+	{
+		boolean registered;
+	}
+
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
 	{
 		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class, null);

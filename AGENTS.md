@@ -25,7 +25,8 @@ something a future session would otherwise rediscover.
 - **Record what the game said.** No event-specific logic in the plugin. Bingo rules and the like
   live on the server (`lib/ledger/ledger-rules.ts`).
 - **Two auth primitives, never both on one route.** Plugin routes take only the bearer token.
-  Site routes take only the Discord session. Onboarding status for `/join` is a site route.
+  Site routes take only the Discord session. Onboarding status for `/join` is a site route. The
+  exception is `/api/plugin/v1/public/**`: no auth, public data only, rate limited per address.
 - **Progress only moves up.** The server merges plugin readings with `greatest()`. Levels, clue
   counts and log slots can't go down in game, so a lower reading is stale.
 
