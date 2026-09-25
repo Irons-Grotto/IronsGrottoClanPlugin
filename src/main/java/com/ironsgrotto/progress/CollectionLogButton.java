@@ -5,6 +5,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.FontID;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.JavaScriptCallback;
@@ -25,7 +26,10 @@ import net.runelite.client.eventbus.Subscribe;
  * - is added after them (a lower event priority runs later), so theirs never
  *   delete it;
  * - goes to the left of whatever buttons are already in the row, however many
- *   of those plugins are on.
+ *   of those plugins are on;
+ * - puts itself back if one of them deletes it while the log is open. Turning
+ *   TempleOSRS off runs its cleanup, which deletes every custom widget on the
+ *   log, ours included.
  */
 @Singleton
 public class CollectionLogButton
@@ -55,7 +59,7 @@ public class CollectionLogButton
 	/** Adds the button if the log is already open, e.g. when the plugin is turned on. */
 	public void startUp()
 	{
-		clientThread.invokeLater(this::add);
+		clientThread.invokeLater(() -> add(true));
 	}
 
 	public void shutDown()
@@ -69,11 +73,41 @@ public class CollectionLogButton
 		if (event.getScriptId() == GameIds.SCRIPT_COLLECTION_SETUP)
 		{
 			remove();
-			add();
+			add(true);
 		}
 	}
 
-	private void add()
+	/** Re-adds the button if another plugin deleted it while the log is open. */
+	@Subscribe
+	public void onGameTick(GameTick tick)
+	{
+		Widget parent = client.getWidget(InterfaceID.Collection.UNIVERSE);
+		if (parent != null && !parent.isHidden() && !hasVisibleButton(parent))
+		{
+			// The title bar already made room for it when the log was built.
+			add(false);
+		}
+	}
+
+	private static boolean hasVisibleButton(Widget parent)
+	{
+		Widget[] children = parent.getChildren();
+		if (children == null)
+		{
+			return false;
+		}
+		for (Widget child : children)
+		{
+			if (child != null && NAME.equals(child.getName()) && !child.isSelfHidden())
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** @param makeRoom narrow the title bar; only once per build of the log */
+	private void add(boolean makeRoom)
 	{
 		// Only for an account the plugin tracks (not on excluded world types).
 		if (session.getIdentity() == null)
@@ -131,8 +165,11 @@ public class CollectionLogButton
 		text.revalidate();
 
 		// The draggable title bar would otherwise sit over the button and take its clicks.
-		topBar.setOriginalWidth(topBar.getOriginalWidth() - (WIDTH + GAP));
-		topBar.revalidate();
+		if (makeRoom)
+		{
+			topBar.setOriginalWidth(topBar.getOriginalWidth() - (WIDTH + GAP));
+			topBar.revalidate();
+		}
 		parent.revalidate();
 	}
 
