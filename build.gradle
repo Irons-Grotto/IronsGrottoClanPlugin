@@ -60,5 +60,7 @@ tasks.register('shadowJar', Jar) {
 
 	group = BasePlugin.BUILD_GROUP
 	archiveClassifier.set('shaded')
-	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
+	// -PclientJar=<name> writes somewhere else, so a rebuild never overwrites
+	// the jar a running dev client was started from.
+	archiveFileName.set(project.findProperty('clientJar') ?: "${rootProject.name}-${project.version}-all.jar")
 }
