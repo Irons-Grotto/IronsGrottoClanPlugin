@@ -138,8 +138,8 @@ Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a *
 3. **Production config** — deploy runs migrations 0026–0028; set `DISCORD_DROPS_CHANNEL_ID` on
    the host (and leave `DEV_*` unset — they are ignored outside `next dev` regardless).
 4. **Plugin repo secret** `DISCORD_RELEASE_WEBHOOK` for the "Irons Grotto Plugin Update" announcer.
-5. **Plugin Hub submission** — a PR to `runelite/plugin-hub` adding `plugins/irons-grotto`
-   (repository + commit). Reviewer risk: the collection log sync briefly toggles the log's own
+5. **Plugin Hub submission** — see `docs/PLUGIN_HUB.md`. Needs the backend in production, this
+   repo public, and a fork of `runelite/plugin-hub`. Reviewer risk: the collection log sync briefly toggles the log's own
    search (same technique as WikiSync). Fallback if refused: read pages as the member browses.
 
 ## Known gaps

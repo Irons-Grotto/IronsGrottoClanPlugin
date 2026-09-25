@@ -25,6 +25,8 @@
   `irons-grotto-sync` thread.
 
 ## Next steps (in order)
+0. **Plugin Hub (M8):** ship the backend to production (flag off), make this repo public, then
+   open the plugin-hub PR (`docs/PLUGIN_HUB.md`).
 1. **Record onboarding for feedback** (`scripts/reset-onboarding.sh EclipseGoon` for a clean
    run), then merge plugin PR #1 and push the backend branch with a PR.
 2. Needs you: `DISCORD_RELEASE_WEBHOOK` secret on the plugin repo (M6.5).
@@ -36,6 +38,17 @@
    instead of cached reading; CA task ids (retires WikiSync); game-mode varbit (account type); flag
    in-game renames for staff; notable-only filter on the Temple clog path; strip dashes from
    internal docs.
+
+## M8 Plugin Hub submission (user 2026-09-25)
+See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release steps).
+- [x] `build=standard`; the Hub's packager builds it (`scripts/hub-check.sh`, same bundle as
+  their CI). Only note: `support` unused, which the Hub allows.
+- [x] History checked for secrets before going public: only the local Docker `grotto:grotto`.
+- [ ] **Blocked:** production has no plugin API yet (`/api/plugin/v1/*` is 404), so the backend
+  branch ships first (flag off), or reviewers and early installs see a dead plugin.
+- [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public; choose whose GitHub account
+  forks `runelite/plugin-hub` and opens the PR.
+- [ ] Open the plugin-hub PR with the manifest pointing at `main`'s release commit.
 
 ## M6.5 Repo up and running (user 2026-09-25)
 - [x] `AGENTS.md`: working knowledge (RuneLite storage/game state/threads, dev pitfalls).
@@ -141,10 +154,13 @@
   nothing prompts them.
 - CA tier precedence is read-then-write (negligible race).
 - Collection log sync toggles the log's search (same as WikiSync); Plugin Hub reviewers may object.
-- `POST /api/update-member-list` in irons-grotto-1 is unauthenticated (pre-existing).
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-25 (night): Plugin Hub prep (M8). `build=standard`, `docs/PLUGIN_HUB.md` (manifest
+  with the data warning a Hub reviewer asked another clan plugin for), `scripts/hub-check.sh`
+  (runs the Hub packager locally; passes). Blocked on the backend in production and the repo
+  going public.
 - 2026-09-25 (late): token UX finished. Panel asks the public registration route: new accounts
   go to Join, registered ones to Get a token (`/plugin?name=` makes it on arrival, numbered
   names). Pasting is the only action (checked, then saved). Revoked tokens are dropped. Dev
