@@ -89,9 +89,9 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
 
 ## Local development
 - Setup (Docker Postgres, backend dev server, dev relay, dev jar): ROADMAP "Local test setup".
-- **Never rebuild the jar a running client is using.** Build the dev client under its own name:
-  `./gradlew shadowJar -PclientJar=irons-grotto-dev.jar`. Check `ps aux | grep irons-grotto`
-  first.
+- **Never rebuild the jar a running client is using.** `scripts/dev-client.sh` stops the dev
+  client, rebuilds `build/libs/irons-grotto-dev.jar` and starts it again; use it rather than
+  doing the steps by hand.
 - Java doesn't trust the Next dev server's HTTPS certificate. `node scripts/dev-relay.mjs` serves
   it as plain HTTP on :3001. Point Advanced, Server URL at it. The relay only proxies
   `/api/plugin/*` and redirects everything else to https://localhost:3000: a page proxied
@@ -101,8 +101,9 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
 - Developer tools (Advanced) spawn test events through the real hooks. They're flagged `test`
   and never count for clan events or post to Discord.
 - **Never use broad kill patterns** (`pkill -f cat` once took down Docker Desktop). Kill by PID.
-  `pgrep -f <jar>` also matches the shell running it, and a wait loop on it matches its own
-  shell and never ends: use `pgrep -f "java.*<jar>"`.
+  `pgrep -f <jar>` (even `"java.*<jar>"`) also matches the shell that launched it, so a kill
+  gets two PIDs and fails, and a wait loop never ends. Match on process name:
+  `ps -axo pid=,comm=,args=`, `comm` ending in `java` (as `dev-client.sh` does).
 - Backend: `yarn dev` in the worktree's `apps/web`. Migrations: `npx drizzle-kit generate --name
   <slug>` then `npx drizzle-kit migrate` (pipe `< /dev/null`, as they can prompt). Typecheck:
   `npx tsc --noEmit -p tsconfig.app.json`. Tests: `npx jest <path>`.

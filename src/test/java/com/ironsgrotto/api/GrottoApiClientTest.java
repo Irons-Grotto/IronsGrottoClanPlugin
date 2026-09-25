@@ -193,4 +193,34 @@ public class GrottoApiClientTest
 
 		assertEquals("igp_test", tokens.get(ACCOUNT));
 	}
+
+	@Test
+	public void checksAPastedTokenWithoutUsingTheSavedOne() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{}}"));
+
+		client.checkToken(ACCOUNT, " igp_pasted ").get();
+
+		assertEquals("Bearer igp_pasted", server.takeRequest().getHeader("Authorization"));
+		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
+
+	@Test
+	public void aRefusedCandidateNeverClearsTheSavedToken()
+	{
+		server.enqueue(new MockResponse().setResponseCode(403)
+			.setBody("{\"success\":false,\"error\":\"This token is for a different account.\",\"code\":\"token_account_mismatch\"}"));
+
+		try
+		{
+			client.checkToken(ACCOUNT, "igp_other").get();
+			fail("expected an error");
+		}
+		catch (InterruptedException | ExecutionException e)
+		{
+			assertTrue(((ApiException) e.getCause()).isTokenRejectedForAccount());
+		}
+
+		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
 }

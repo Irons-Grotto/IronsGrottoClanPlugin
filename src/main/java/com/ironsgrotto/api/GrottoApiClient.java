@@ -11,6 +11,7 @@ import com.ironsgrotto.session.AccountIdentity;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -74,12 +75,22 @@ public class GrottoApiClient
 
 	public CompletableFuture<MeResponse> getMe(AccountIdentity identity)
 	{
-		return getAsync(API_PREFIX + "/me", identity, MeResponse.class);
+		return getAsync(API_PREFIX + "/me", identity, MeResponse.class, null);
+	}
+
+	/**
+	 * Tries a token the member has just pasted, before it is saved. Accepting
+	 * it also binds it to this account on the server. A refusal leaves the
+	 * saved token (if any) alone: it is this candidate that was refused.
+	 */
+	public CompletableFuture<MeResponse> checkToken(AccountIdentity identity, String candidate)
+	{
+		return getAsync(API_PREFIX + "/me", identity, MeResponse.class, candidate.trim());
 	}
 
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
 	{
-		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class);
+		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class, null);
 	}
 
 	/**
@@ -142,14 +153,15 @@ public class GrottoApiClient
 		}
 	}
 
-	private <T> CompletableFuture<T> getAsync(String path, AccountIdentity identity, Type responseType)
+	private <T> CompletableFuture<T> getAsync(String path, AccountIdentity identity, Type responseType,
+		@Nullable String candidateToken)
 	{
 		CompletableFuture<T> future = new CompletableFuture<>();
 		Request request;
 
 		try
 		{
-			request = requestBuilder(path, identity).get().build();
+			request = requestBuilder(path, identity, candidateToken).get().build();
 		}
 		catch (ApiException e)
 		{
@@ -170,7 +182,7 @@ public class GrottoApiClient
 			{
 				try (response)
 				{
-					future.complete(parse(response, identity, responseType));
+					future.complete(parse(response, identity, responseType, candidateToken == null));
 				}
 				catch (ApiException e)
 				{
@@ -192,7 +204,14 @@ public class GrottoApiClient
 
 	private Request.Builder requestBuilder(String path, AccountIdentity identity) throws ApiException
 	{
-		String token = tokens.get(identity);
+		return requestBuilder(path, identity, null);
+	}
+
+	/** @param candidateToken a token to try instead of the account's saved one */
+	private Request.Builder requestBuilder(String path, AccountIdentity identity, @Nullable String candidateToken)
+		throws ApiException
+	{
+		String token = candidateToken != null ? candidateToken : tokens.get(identity);
 		if (token.isEmpty())
 		{
 			throw new ApiException(401, "No plugin token set");
@@ -217,6 +236,13 @@ public class GrottoApiClient
 
 	private <T> T parse(Response response, AccountIdentity identity, Type type) throws ApiException
 	{
+		return parse(response, identity, type, true);
+	}
+
+	/** @param clearOnReject drop the account's saved token if the server refuses it for this account */
+	private <T> T parse(Response response, AccountIdentity identity, Type type, boolean clearOnReject)
+		throws ApiException
+	{
 		JsonObject envelope = readEnvelope(response);
 
 		if (!response.isSuccessful() || envelope == null || !isSuccess(envelope))
@@ -230,7 +256,7 @@ public class GrottoApiClient
 				? envelope.get("code").getAsString()
 				: null;
 			ApiException failure = new ApiException(response.isSuccessful() ? 500 : response.code(), error, code);
-			if (failure.isTokenRejectedForAccount())
+			if (clearOnReject && failure.isTokenRejectedForAccount())
 			{
 				tokens.clearRejected(identity);
 			}

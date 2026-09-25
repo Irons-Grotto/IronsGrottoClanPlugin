@@ -21,6 +21,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -31,6 +32,9 @@ import javax.swing.JPasswordField;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -65,6 +69,9 @@ public class GrottoPanel extends PluginPanel
 	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
+	/** Quiet time after the last keystroke before a token is checked. */
+	private static final int TOKEN_SETTLE_MS = 400;
+	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
 
 	public GrottoPanel(String tokenUrl, DevTools devTools)
 	{
@@ -142,31 +149,58 @@ public class GrottoPanel extends PluginPanel
 			accountSection.add(wrapped("Paste a token from the Irons Grotto site. Each account needs its own."));
 			accountSection.add(Box.createVerticalStrut(6));
 
+			// No save button: a complete token is checked with the server as
+			// soon as it is pasted, and saved only if the server takes it.
 			JPasswordField field = new JPasswordField();
 			field.setAlignmentX(Component.LEFT_ALIGNMENT);
 			field.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, field.getPreferredSize().height));
-			JButton save = new JButton("Save token");
-			save.setAlignmentX(Component.LEFT_ALIGNMENT);
-			Runnable submit = () ->
+			Timer settle = new Timer(TOKEN_SETTLE_MS, e ->
 			{
 				String token = new String(field.getPassword()).trim();
-				if (!token.isEmpty())
+				if (looksLikeToken(token))
 				{
+					field.setEnabled(false);
+					status("Checking token…");
 					onTokenEntered.accept(token);
 				}
-			};
-			field.addActionListener(e -> submit.run());
-			save.addActionListener(e -> submit.run());
+			});
+			settle.setRepeats(false);
+			field.getDocument().addDocumentListener(new DocumentListener()
+			{
+				@Override
+				public void insertUpdate(DocumentEvent e)
+				{
+					settle.restart();
+				}
+
+				@Override
+				public void removeUpdate(DocumentEvent e)
+				{
+					settle.restart();
+				}
+
+				@Override
+				public void changedUpdate(DocumentEvent e)
+				{
+				}
+			});
 
 			accountSection.add(field);
-			accountSection.add(Box.createVerticalStrut(6));
-			accountSection.add(save);
 			accountSection.add(Box.createVerticalStrut(6));
 			accountSection.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
 			revalidateAll();
 		});
+	}
+
+	/**
+	 * A whole token rather than part of one being typed: the prefix and the
+	 * full length of the random part. Only then is it worth asking the server.
+	 */
+	static boolean looksLikeToken(String text)
+	{
+		return TOKEN_SHAPE.matcher(text).matches();
 	}
 
 	/** The token page, naming the account so the new token is labelled with it. */

@@ -142,7 +142,7 @@ public class IronsGrottoPlugin extends Plugin
 		executor.start();
 		panel = new GrottoPanel(tokenPageUrl(), devTools);
 		panel.setDevToolsVisible(config.developerTools());
-		panel.setOnTokenEntered(this::saveToken);
+		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -254,18 +254,42 @@ public class IronsGrottoPlugin extends Plugin
 		}
 	}
 
-	/** A token pasted into the panel, for the account logged in now. */
-	private void saveToken(String token)
+	/**
+	 * A token pasted into the panel, for the account logged in now. Tried
+	 * with the server first and saved only if it is accepted, which also
+	 * binds it to this account.
+	 */
+	private void checkToken(String token)
 	{
 		AccountIdentity identity = session.getIdentity();
 		if (identity == null)
 		{
 			return;
 		}
-		tokens.set(identity, token);
-		// Anything waiting for a token goes now; the first request binds it.
-		outbox.resume();
-		refresh();
+
+		api.checkToken(identity, token)
+			.thenAccept(me ->
+			{
+				tokens.set(identity, token);
+				// Anything waiting for a token goes now.
+				outbox.resume();
+				refresh();
+			})
+			.exceptionally(error ->
+			{
+				Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+				panel.showNoToken(identity.getRsn(), tokenCheckMessage(cause));
+				return null;
+			});
+	}
+
+	private static String tokenCheckMessage(Throwable cause)
+	{
+		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized())
+		{
+			return "Token not accepted. Check it's copied in full, or get a new one.";
+		}
+		return cause.getMessage() != null ? cause.getMessage() : "Can't reach the Irons Grotto server.";
 	}
 
 	/** The server will never take this account's token; ask for another. */
