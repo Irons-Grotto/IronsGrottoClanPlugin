@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.concurrent.ScheduledExecutorService;
+import com.ironsgrotto.SyncExecutor;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -34,12 +34,12 @@ public class ScreenshotService
 	private static final float JPEG_QUALITY = 0.85f;
 
 	private final DrawManager drawManager;
-	private final ScheduledExecutorService executor;
+	private final SyncExecutor executor;
 
 	private volatile ScreenshotStore store;
 
 	@Inject
-	ScreenshotService(DrawManager drawManager, ScheduledExecutorService executor)
+	ScreenshotService(DrawManager drawManager, SyncExecutor executor)
 	{
 		this.drawManager = drawManager;
 		this.executor = executor;

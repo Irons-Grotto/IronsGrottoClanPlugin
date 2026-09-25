@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
@@ -84,7 +83,7 @@ public class IronsGrottoPlugin extends Plugin
 	private ChatMessageManager chatMessageManager;
 
 	@Inject
-	private ScheduledExecutorService executor;
+	private SyncExecutor executor;
 
 	@Inject
 	private Gson gson;
@@ -136,6 +135,7 @@ public class IronsGrottoPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
+		executor.start();
 		panel = new GrottoPanel(tokenPageUrl(), devTools);
 		panel.setDevToolsVisible(config.developerTools());
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
@@ -202,6 +202,7 @@ public class IronsGrottoPlugin extends Plugin
 			refreshTask.cancel(false);
 		}
 		session.clear();
+		executor.stop();
 		panel = null;
 		outbox = null;
 	}

@@ -6,7 +6,7 @@ import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatMessageParser;
-import java.util.concurrent.ScheduledExecutorService;
+import com.ironsgrotto.SyncExecutor;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.ChatMessageType;
@@ -54,7 +54,7 @@ public class ProgressSync
 	private final ProgressCollector collector;
 	private final ProgressUploader uploader;
 	private final ItemManager itemManager;
-	private final ScheduledExecutorService executor;
+	private final SyncExecutor executor;
 
 	private AccountIdentity account;
 	private int ticksLoggedIn;
@@ -66,7 +66,7 @@ public class ProgressSync
 
 	@Inject
 	ProgressSync(Client client, AccountSession session, ProgressCollector collector, ProgressUploader uploader,
-		CollectionLogSync collectionLog, ItemManager itemManager, ScheduledExecutorService executor)
+		CollectionLogSync collectionLog, ItemManager itemManager, SyncExecutor executor)
 	{
 		this.client = client;
 		this.session = session;
