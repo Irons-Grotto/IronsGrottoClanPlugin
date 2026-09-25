@@ -189,7 +189,7 @@ public class GrottoApiClient
 	{
 		log.warn("Irons Grotto request to {} failed", url, e);
 		String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-		return new ApiException("Could not reach " + url.scheme() + "://" + url.host() + ":" + url.port() + " (" + reason + ")", e);
+		return new ApiException("Can't reach " + url.scheme() + "://" + url.host() + ":" + url.port() + " (" + reason + ")", e);
 	}
 
 	private Request.Builder requestBuilder(String path, AccountIdentity identity) throws ApiException
@@ -226,7 +226,7 @@ public class GrottoApiClient
 			String error = envelope != null && envelope.has("error") && !envelope.get("error").isJsonNull()
 				? envelope.get("error").getAsString()
 				: response.code() == 404
-					? "The server at " + config.apiBaseUrl() + " does not support the plugin yet (404). Check the Server URL setting."
+					? config.apiBaseUrl() + " doesn't support the plugin (404). Check the Server URL setting."
 					: "Server returned " + response.code();
 			throw new ApiException(response.isSuccessful() ? 500 : response.code(), error);
 		}
@@ -238,7 +238,7 @@ public class GrottoApiClient
 		}
 		catch (JsonParseException e)
 		{
-			throw new ApiException("Unexpected response from the Irons Grotto server", e);
+			throw new ApiException("Unexpected response from the Irons Grotto server.", e);
 		}
 	}
 

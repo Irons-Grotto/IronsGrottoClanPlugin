@@ -13,21 +13,21 @@ public interface IronsGrottoConfig extends Config
 
 	@ConfigSection(
 		name = "Account",
-		description = "Linking the plugin to your Irons Grotto account",
+		description = "Your Irons Grotto token",
 		position = 0
 	)
 	String accountSection = "account";
 
 	@ConfigSection(
 		name = "Notifications",
-		description = "What the plugin tells you in game",
+		description = "What the plugin shows in game",
 		position = 1
 	)
 	String notificationsSection = "notifications";
 
 	@ConfigSection(
 		name = "Advanced",
-		description = "Only needed when developing the plugin",
+		description = "For plugin development",
 		position = 2,
 		closedByDefault = true
 	)
@@ -36,7 +36,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "pluginToken",
 		name = "Plugin token",
-		description = "Generate one at ironsgrotto.xyz/plugin after signing in with Discord",
+		description = "Generate one at ironsgrotto.xyz/plugin",
 		secret = true,
 		section = accountSection,
 		position = 0
@@ -49,7 +49,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "chatFeedback",
 		name = "Chat messages",
-		description = "Show messages from the clan server in your chatbox (e.g. drops recorded for an event)",
+		description = "Confirm recorded drops, log slots and pets in chat",
 		section = notificationsSection,
 		position = 0
 	)
@@ -61,7 +61,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "screenshots",
 		name = "Screenshots",
-		description = "Screenshot valuable drops, new collection log slots and pets as proof, and share them in the clan drops channel",
+		description = "Screenshot valuable drops, new log slots and pets for the clan drops channel",
 		section = notificationsSection,
 		position = 2
 	)
@@ -73,7 +73,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "debug",
 		name = "Debug messages",
-		description = "Echo every request result into the chatbox",
+		description = "Show every server response in chat",
 		section = notificationsSection,
 		position = 1
 	)
@@ -85,7 +85,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "apiBaseUrl",
 		name = "Server URL",
-		description = "Only change this when developing against a local server",
+		description = "For local development only",
 		section = advancedSection
 	)
 	default String apiBaseUrl()
@@ -96,7 +96,7 @@ public interface IronsGrottoConfig extends Config
 	@ConfigItem(
 		keyName = "developerTools",
 		name = "Developer tools",
-		description = "Show buttons in the panel that spawn test events (marked as tests; never counted for clan events)",
+		description = "Buttons that spawn test events. Never counted for clan events.",
 		section = advancedSection
 	)
 	default boolean developerTools()

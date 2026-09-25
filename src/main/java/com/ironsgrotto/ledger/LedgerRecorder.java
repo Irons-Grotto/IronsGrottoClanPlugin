@@ -57,7 +57,7 @@ public class LedgerRecorder
 
 		if (current == null || account == null)
 		{
-			log.debug("Not recording {} — no session", type);
+			log.debug("Not recording {}: no session", type);
 			return false;
 		}
 

@@ -61,8 +61,6 @@ public class GrottoPanel extends PluginPanel
 
 	private static final int RECENT_LIMIT = 10;
 
-	private final JLabel progressLabel = new JLabel();
-
 	public GrottoPanel(String tokenUrl, DevTools devTools)
 	{
 		this.tokenUrl = tokenUrl;
@@ -94,14 +92,8 @@ public class GrottoPanel extends PluginPanel
 		content.add(devSection);
 		content.add(Box.createVerticalStrut(8));
 
-		// No buttons: the plugin syncs by itself on login, logout and the
-		// events that change a member's standing, and refreshes this panel
-		// when the server has them.
-		progressLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		progressLabel.setFont(FontManager.getRunescapeSmallFont());
-		progressLabel.setText("Progress syncs when you log in and out");
-		progressLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-		content.add(progressLabel);
+		// No buttons and no "all good" status: the plugin syncs by itself, and
+		// the panel only speaks up when the member has something to do.
 		pendingLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		content.add(pendingLabel);
 
@@ -117,7 +109,7 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			status("Log in to see your clan progress.");
+			status("Log in to see your progress.");
 			accountSection.setVisible(false);
 			eventSection.setVisible(false);
 		});
@@ -127,11 +119,10 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			status("Link the plugin to get started.");
+			status("");
 			accountSection.removeAll();
-			accountSection.add(wrapped("1. Sign in with Discord on the Irons Grotto website."));
-			accountSection.add(wrapped("2. Generate a plugin token."));
-			accountSection.add(wrapped("3. Paste it into this plugin's settings."));
+			accountSection.add(heading("Link your account"));
+			accountSection.add(wrapped("Generate a token on the Irons Grotto site and paste it into this plugin's settings."));
 			accountSection.add(Box.createVerticalStrut(6));
 			accountSection.add(linkButton("Get a token", tokenUrl));
 			accountSection.setVisible(true);
@@ -154,10 +145,11 @@ public class GrottoPanel extends PluginPanel
 
 			accountSection.add(heading(me.getRsn()));
 
+			status("");
+
 			if (member == null)
 			{
-				status("Linked — not a clan member yet.");
-				accountSection.add(wrapped("Your activity is being recorded. Join the clan to start ranking up."));
+				accountSection.add(small("Not a clan member yet."));
 				if (me.getJoinUrl() != null)
 				{
 					accountSection.add(Box.createVerticalStrut(6));
@@ -166,7 +158,6 @@ public class GrottoPanel extends PluginPanel
 			}
 			else
 			{
-				status("Linked.");
 				accountSection.add(row("Rank", member.getRank()));
 				accountSection.add(row("Points", NUMBERS.format(Math.floor(member.getPoints()))));
 				accountSection.add(Box.createVerticalStrut(4));
@@ -187,18 +178,18 @@ public class GrottoPanel extends PluginPanel
 
 			if (active != null)
 			{
-				eventSection.add(heading(active.getTypeLabel() + ": " + active.getMetricName()));
+				eventSection.add(heading(shortType(active.getType()) + ": " + active.getMetricName()));
 				eventSection.add(small(timeLeft("Ends", active.getEndsAt())));
 				eventSection.add(Box.createVerticalStrut(4));
 
 				List<ClanEventStatus.Standing> standings = active.getStandings();
 				if (active.isStandingsUnavailable())
 				{
-					eventSection.add(small("Standings unknown right now."));
+					eventSection.add(small("Standings unavailable"));
 				}
 				else if (standings.isEmpty())
 				{
-					eventSection.add(small("Nobody has gained anything yet."));
+					eventSection.add(small("No gains yet"));
 				}
 				else
 				{
@@ -214,24 +205,28 @@ public class GrottoPanel extends PluginPanel
 					}
 				}
 			}
-			// The one after, as a small line under whatever is shown above.
-			if (active != null && events.getNext() != null)
+			ClanEventStatus.EventSummary next = events.getNext();
+			if (next != null)
 			{
-				ClanEventStatus.EventSummary next = events.getNext();
-				eventSection.add(Box.createVerticalStrut(4));
-				eventSection.add(small("Next: " + next.getTypeLabel() + " — " + next.getMetricName()
-					+ " · " + timeLeft("starts", next.getStartsAt()).replaceFirst("^starts in ", "in ")));
+				String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
+				if (active != null)
+				{
+					eventSection.add(Box.createVerticalStrut(4));
+					eventSection.add(small(upcoming));
+				}
+				else
+				{
+					eventSection.add(heading(upcoming));
+					eventSection.add(small(timeLeft("Starts", next.getStartsAt())));
+				}
 			}
-			else if (events.getNext() != null)
+
+			// Nothing running or booked: no section, rather than one saying so.
+			if (active == null && next == null)
 			{
-				ClanEventStatus.EventSummary next = events.getNext();
-				eventSection.add(heading("Next: " + next.getTypeLabel() + ": " + next.getMetricName()));
-				eventSection.add(small(timeLeft("Starts", next.getStartsAt())));
-			}
-			else
-			{
-				eventSection.add(heading("Clan events"));
-				eventSection.add(small("No event running."));
+				eventSection.setVisible(false);
+				revalidateAll();
+				return;
 			}
 
 			eventSection.setVisible(true);
@@ -253,11 +248,6 @@ public class GrottoPanel extends PluginPanel
 		});
 	}
 
-	public void setProgressSynced(java.time.LocalTime at)
-	{
-		onEdt(() -> progressLabel.setText("Progress synced " + at.withNano(0).withSecond(0)));
-	}
-
 	public void setDevToolsVisible(boolean visible)
 	{
 		onEdt(() ->
@@ -270,12 +260,14 @@ public class GrottoPanel extends PluginPanel
 	private void renderRecent()
 	{
 		activitySection.removeAll();
-		activitySection.add(heading("Recent activity"));
-
 		if (recent.isEmpty())
 		{
-			activitySection.add(small("Nothing recorded this session yet."));
+			activitySection.setVisible(false);
+			revalidateAll();
+			return;
 		}
+
+		activitySection.add(heading("Recent activity"));
 		for (OutboxEntry entry : recent)
 		{
 			activitySection.add(small((entry.isTest() ? "[Test] " : "") + describe(entry)));
@@ -293,13 +285,12 @@ public class GrottoPanel extends PluginPanel
 			case LedgerEventType.BOSS_KC:
 				return payload.get("boss").getAsString() + " kc " + NUMBERS.format(payload.get("kc").getAsInt());
 			case LedgerEventType.LOOT:
-				return "Loot: " + payload.get("source").getAsString()
-					+ (payload.has("kc") ? " kc " + NUMBERS.format(payload.get("kc").getAsInt()) : "")
-					+ " (" + NUMBERS.format(payload.get("totalValue").getAsLong()) + " gp)";
+				return payload.get("source").getAsString() + ": "
+					+ NUMBERS.format(payload.get("totalValue").getAsLong()) + " gp";
 			case LedgerEventType.COLLECTION_LOG_ITEM:
-				return "Collection log: " + payload.get("itemName").getAsString();
+				return "New log slot: " + payload.get("itemName").getAsString();
 			case LedgerEventType.PET:
-				return "Pet!";
+				return "Pet";
 			default:
 				return entry.getType();
 		}
@@ -308,7 +299,7 @@ public class GrottoPanel extends PluginPanel
 	private void buildDevSection(DevTools devTools)
 	{
 		devSection.add(heading("Developer tools"));
-		devSection.add(wrapped("Spawn test events through the real hooks. They are marked as tests and never count for clan events."));
+		devSection.add(wrapped("Spawns test events. They never count for clan events."));
 		devSection.add(Box.createVerticalStrut(4));
 
 		JPanel buttons = new JPanel(new GridLayout(3, 2, 4, 4));
@@ -331,7 +322,11 @@ public class GrottoPanel extends PluginPanel
 
 	public void setPendingCount(int pending)
 	{
-		onEdt(() -> pendingLabel.setText(pending == 0 ? "All activity synced" : pending + " events waiting to send"));
+		onEdt(() ->
+		{
+			pendingLabel.setText(pending == 1 ? "1 event waiting to send" : pending + " events waiting to send");
+			pendingLabel.setVisible(pending > 0);
+		});
 	}
 
 	private JProgressBar rankProgress(MemberStatus member)
@@ -361,9 +356,11 @@ public class GrottoPanel extends PluginPanel
 		return bar;
 	}
 
+	/** A line under the title, shown only when the member has something to act on. */
 	private void status(String text)
 	{
 		statusLabel.setText(text);
+		statusLabel.setVisible(!text.isEmpty());
 	}
 
 	private void revalidateAll()
@@ -428,6 +425,12 @@ public class GrottoPanel extends PluginPanel
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
 		button.addActionListener(e -> LinkBrowser.browse(url));
 		return button;
+	}
+
+	/** SOTW or BOTW, from the event type the server sends. */
+	static String shortType(@Nullable String eventType)
+	{
+		return eventType == null ? "Event" : eventType.toUpperCase(java.util.Locale.ROOT);
 	}
 
 	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */

@@ -58,7 +58,7 @@ import net.runelite.client.util.ImageUtil;
 @Slf4j
 @PluginDescriptor(
 	name = "Irons Grotto",
-	description = "Clan companion for Irons Grotto: rank progress, SOTW/BOTW standings and automatic event tracking",
+	description = "Irons Grotto clan rank, SOTW/BOTW standings and event tracking",
 	tags = {"clan", "irons grotto", "rank", "bingo", "events"}
 )
 public class IronsGrottoPlugin extends Plugin
@@ -171,7 +171,6 @@ public class IronsGrottoPlugin extends Plugin
 
 		progressUploader.setOnSynced(result ->
 		{
-			panel.setProgressSynced(java.time.LocalTime.now());
 			// Points may have moved; show the new standing.
 			refresh();
 		});
@@ -304,16 +303,16 @@ public class IronsGrottoPlugin extends Plugin
 
 		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized())
 		{
-			panel.showError("Your plugin token was not accepted. Generate a new one on the website.");
+			panel.showError("Token not accepted. Generate a new one on the Irons Grotto site.");
 		}
 		else if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
 		{
 			// Nothing recorded is lost: the outbox and screenshots wait for the update.
-			panel.showError(cause.getMessage() + " Your recorded activity is kept and sent after you update.");
+			panel.showError(cause.getMessage());
 		}
 		else
 		{
-			panel.showError(cause.getMessage() != null ? cause.getMessage() : "Could not reach the Irons Grotto server");
+			panel.showError(cause.getMessage() != null ? cause.getMessage() : "Can't reach the Irons Grotto server.");
 		}
 
 		if (config.debug())
