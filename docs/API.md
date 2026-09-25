@@ -35,6 +35,9 @@ Envelope: `{ "success": true, "data": â€¦ }` or `{ "success": false, "error": "â
 `code` is set only where the plugin acts on it: on `token_account_mismatch` or
 `account_not_yours` it deletes the token it holds for that account and asks for a new one.
 
+Getting a token: the panel links to `<Server URL>/plugin?name=<rsn>`, which pre-fills the token's
+name with the account; a name already in use gets a number ("EclipseGoon 2").
+
 Plugin storage: tokens live per game account in RuneLite's RS-profile config (`TokenStore`),
 looked up by account hash, so a token is never sent for another account (e.g. a friend on the same
 client) and syncs across machines with RuneLite profile sync.

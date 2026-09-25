@@ -93,12 +93,16 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   `./gradlew shadowJar -PclientJar=irons-grotto-dev.jar`. Check `ps aux | grep irons-grotto`
   first.
 - Java doesn't trust the Next dev server's HTTPS certificate. `node scripts/dev-relay.mjs` serves
-  it as plain HTTP on :3001. Point Advanced, Server URL at it.
+  it as plain HTTP on :3001. Point Advanced, Server URL at it. The relay only proxies
+  `/api/plugin/*` and redirects everything else to https://localhost:3000: a page proxied
+  through :3001 breaks server actions (Next refuses an Origin that isn't the forwarded host).
 - Jagex accounts in the dev client: `--insecure-write-credentials` via RuneLite `--configure`,
   launch once from the Jagex Launcher, then delete `~/.runelite/credentials.properties`.
 - Developer tools (Advanced) spawn test events through the real hooks. They're flagged `test`
   and never count for clan events or post to Discord.
 - **Never use broad kill patterns** (`pkill -f cat` once took down Docker Desktop). Kill by PID.
+  `pgrep -f <jar>` also matches the shell running it, and a wait loop on it matches its own
+  shell and never ends: use `pgrep -f "java.*<jar>"`.
 - Backend: `yarn dev` in the worktree's `apps/web`. Migrations: `npx drizzle-kit generate --name
   <slug>` then `npx drizzle-kit migrate` (pipe `< /dev/null`, as they can prompt). Typecheck:
   `npx tsc --noEmit -p tsconfig.app.json`. Tests: `npx jest <path>`.

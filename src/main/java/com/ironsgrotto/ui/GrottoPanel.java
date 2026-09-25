@@ -11,6 +11,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -160,11 +162,24 @@ public class GrottoPanel extends PluginPanel
 			accountSection.add(Box.createVerticalStrut(6));
 			accountSection.add(save);
 			accountSection.add(Box.createVerticalStrut(6));
-			accountSection.add(linkButton("Get a token", tokenUrl));
+			accountSection.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
 			revalidateAll();
 		});
+	}
+
+	/** The token page, naming the account so the new token is labelled with it. */
+	static String tokenUrlFor(String tokenUrl, String rsn)
+	{
+		try
+		{
+			return tokenUrl + "?name=" + URLEncoder.encode(rsn, "UTF-8").replace("+", "%20");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			return tokenUrl;
+		}
 	}
 
 	public void showError(String message)
