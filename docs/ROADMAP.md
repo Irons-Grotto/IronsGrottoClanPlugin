@@ -137,6 +137,10 @@
 - [ ] Plugin Hub submission (user action; see VALIDATION.md "Needs you")
 
 ## Open questions / decisions
+- **Only notable items and pets are stored** from plugin collection logs (user, 2026-09-25) — in
+  `player_acquired_items` *and* in `plugin_progress_snapshots` (no full raw list kept). Names are
+  normalised to canonical (`toCanonicalPluginItemName`) and existing rows keep their names.
+  Snapshots themselves stay: they carry readings sent before an account is a member.
 - **Data boundary** (user, 2026-09-24): two sources of truth, backend deferential to the plugin —
   see [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md). Plugin-owned categories (≤30 days): Temple/WikiSync
   may raise, never lower (SQL `greatest`). Plugin writes must not bump `players.updated_at`.
