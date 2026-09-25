@@ -25,8 +25,8 @@
   `irons-grotto-sync` thread.
 
 ## Next steps (in order)
-0. **Plugin Hub (M8):** ship the backend to production (flag off), make this repo public, then
-   open the plugin-hub PR (`docs/PLUGIN_HUB.md`).
+0. **Plugin Hub (M8):** deploy irons-grotto-1 #118, make this repo public, open the plugin-hub
+   PR (`docs/PLUGIN_HUB.md`). Backend to production (flag off) before the Hub merges it.
 1. **Record onboarding for feedback** (`scripts/reset-onboarding.sh EclipseGoon` for a clean
    run), then merge plugin PR #1 and push the backend branch with a PR.
 2. Needs you: `DISCORD_RELEASE_WEBHOOK` secret on the plugin repo (M6.5).
@@ -44,11 +44,15 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - [x] `build=standard`; the Hub's packager builds it (`scripts/hub-check.sh`, same bundle as
   their CI). Only note: `support` unused, which the Hub allows.
 - [x] History checked for secrets before going public: only the local Docker `grotto:grotto`.
-- [ ] **Blocked:** production has no plugin API yet (`/api/plugin/v1/*` is 404), so the backend
-  branch ships first (flag off), or reviewers and early installs see a dead plugin.
-- [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public; choose whose GitHub account
-  forks `runelite/plugin-hub` and opens the PR.
-- [ ] Open the plugin-hub PR with the manifest pointing at `main`'s release commit.
+- [ ] Production has no plugin API yet (`/api/plugin/v1/*` is 404). Ship the backend (flag off)
+  before a maintainer merges the Hub PR.
+- [x] Before going public: `POST /api/update-member-list` now needs `?key=$MEMBER_LIST_SECRET`
+  (irons-grotto-1 PR #118, branch `mm/lock-member-list`, worktree `.claude/worktrees/lock-member-list`).
+  **Needs you:** set the secret in Vercel and update the Clanmate Export URL, then merge.
+- [x] Fork `mattlm0831/plugin-hub`, branch `irons-grotto` pushed (clone at `~/plugin-hub-fork`),
+  manifest at `419bf38` (hub-check passes). User: submit without waiting for the backend.
+- [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public once #118 is deployed.
+- [ ] Merge plugin PR #2, point `commit=` at `main`, open the plugin-hub PR.
 
 ## M6.5 Repo up and running (user 2026-09-25)
 - [x] `AGENTS.md`: working knowledge (RuneLite storage/game state/threads, dev pitfalls).
@@ -159,8 +163,8 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 ## Session log
 - 2026-09-25 (night): Plugin Hub prep (M8). `build=standard`, `docs/PLUGIN_HUB.md` (manifest
   with the data warning a Hub reviewer asked another clan plugin for), `scripts/hub-check.sh`
-  (runs the Hub packager locally; passes). Blocked on the backend in production and the repo
-  going public.
+  (runs the Hub packager locally; passes). Locked the member list export (irons-grotto-1 #118)
+  before going public. Fork + branch ready; PR waits on the repo going public.
 - 2026-09-25 (late): token UX finished. Panel asks the public registration route: new accounts
   go to Join, registered ones to Get a token (`/plugin?name=` makes it on arrival, numbered
   names). Pasting is the only action (checked, then saved). Revoked tokens are dropped. Dev
