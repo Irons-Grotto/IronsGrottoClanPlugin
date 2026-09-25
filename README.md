@@ -17,7 +17,8 @@ This plugin sends data about your account to the Irons Grotto server (ironsgrott
 2. Get a token at <https://ironsgrotto.xyz/plugin>. New members get one on the first step of
    <https://ironsgrotto.xyz/join>.
 3. Paste it into the Irons Grotto side panel.
-4. Open your collection log once.
+4. Open your collection log, then press **Sync collection log** in the side panel. Do it again
+   whenever you want the whole log re-read; new slots are recorded as you get them.
 
 Each account needs its own token. Tokens are saved per account, and follow the account to other
 computers if you're signed in to RuneLite with profile sync on.

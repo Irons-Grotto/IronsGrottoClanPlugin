@@ -66,8 +66,11 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   side of the chat message, so match it against the message's name before trusting it.
 - The full collection log: the log only draws the open page, so `CollectionLogSync` toggles the
   log's own search (draws every obtained item), collects script 4100's args (item id, quantity),
-  then closes the search with script 2240. WikiSync does the same. Plugin Hub reviewers may
-  question it.
+  then closes the search with script 2240. WikiSync uses the same calls. **Only on the member's
+  click** ("Sync collection log" in the side panel, log open): firing the toggle by itself on
+  opening the log is the automation Hub review questions. WikiSync gets through with a button.
+- Last full sync per account: RS-profile config `collectionLogSyncedAt`. No value = first sync,
+  which the panel shows in red until done.
 - Prefer `net.runelite.api.gameval.*` (`VarbitID`, `VarPlayerID`, `InterfaceID`) over the
   deprecated `Varbits`/`VarPlayer`. Game ids RuneLite doesn't name go in `progress/GameIds.java`.
 - To confirm a constant or signature, read the jar Gradle resolved, don't guess:

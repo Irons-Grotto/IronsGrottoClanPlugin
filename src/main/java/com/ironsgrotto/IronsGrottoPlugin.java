@@ -141,6 +141,9 @@ public class IronsGrottoPlugin extends Plugin
 		executor.start();
 		panel = new GrottoPanel(siteUrl());
 		panel.setOnTokenEntered(this::checkToken);
+		panel.setOnSyncCollectionLog(collectionLogSync::requestSync);
+		GrottoPanel shown = panel;
+		collectionLogSync.setOnState(shown::showCollectionLog);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -194,6 +197,7 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.unregister(lootTracker);
 		eventBus.unregister(progressSync);
 		eventBus.unregister(collectionLogSync);
+		collectionLogSync.setOnState(state -> { });
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
 		if (flushTask != null)
@@ -343,6 +347,9 @@ public class IronsGrottoPlugin extends Plugin
 		{
 			return;
 		}
+
+		// This account's own sync state (its last sync is saved per account).
+		collectionLogSync.publish();
 
 		api.getMe(identity)
 			.thenAccept(me ->

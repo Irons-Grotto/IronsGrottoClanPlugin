@@ -23,4 +23,15 @@ public class GrottoPanelTest
 		assertFalse(GrottoPanel.looksLikeToken("abc_" + "a".repeat(43)));
 		assertFalse(GrottoPanel.looksLikeToken(token + "x"));
 	}
+
+	@Test
+	public void saysWhenTheLogWasLastSynced()
+	{
+		java.time.Instant now = java.time.Instant.now();
+		assertEquals("", GrottoPanel.syncedAgo(null));
+		assertEquals("Synced just now", GrottoPanel.syncedAgo(now.minusSeconds(20)));
+		assertEquals("Synced 5m ago", GrottoPanel.syncedAgo(now.minusSeconds(5 * 60 + 5)));
+		assertEquals("Synced 3h ago", GrottoPanel.syncedAgo(now.minusSeconds(3 * 3600 + 60)));
+		assertEquals("Synced 2d ago", GrottoPanel.syncedAgo(now.minusSeconds(2 * 86400 + 60)));
+	}
 }
