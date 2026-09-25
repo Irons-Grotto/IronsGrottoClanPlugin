@@ -65,6 +65,15 @@ public class ApiException extends Exception
 		return ACCOUNT_NOT_YOURS.equals(code) || TOKEN_ACCOUNT_MISMATCH.equals(code);
 	}
 
+	/**
+	 * The saved token will never work for this account: revoked or unknown
+	 * (401), bound to another account, or the account is someone else's.
+	 */
+	public boolean isTokenDead()
+	{
+		return status == 401 || isTokenRejectedForAccount();
+	}
+
 	/** The token is missing, wrong or revoked. */
 	public boolean isUnauthorized()
 	{

@@ -2,7 +2,6 @@ package com.ironsgrotto.progress;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatMessageParser;
@@ -15,10 +14,15 @@ import net.runelite.api.GameState;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
+import net.runelite.client.events.PluginChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.util.Text;
 
 /**
@@ -35,6 +39,8 @@ import net.runelite.client.util.Text;
  *   sent straight away, and the panel refreshes when the server has it.
  * - **Opening the collection log** — the whole item list (see
  *   {@link CollectionLogSync}).
+ * - **Client settings** tracking depends on — on login and whenever the
+ *   member changes one, so onboarding sees the fix straight away.
  *
  * Nothing unchanged is ever re-sent: the uploader skips a category identical
  * to its last upload. Test events from the developer tools never touch
@@ -55,6 +61,7 @@ public class ProgressSync
 	private final ProgressUploader uploader;
 	private final ItemManager itemManager;
 	private final SyncExecutor executor;
+	private final ClientThread clientThread;
 
 	private AccountIdentity account;
 	private int ticksLoggedIn;
@@ -66,8 +73,9 @@ public class ProgressSync
 
 	@Inject
 	ProgressSync(Client client, AccountSession session, ProgressCollector collector, ProgressUploader uploader,
-		CollectionLogSync collectionLog, ItemManager itemManager, SyncExecutor executor)
+		CollectionLogSync collectionLog, ItemManager itemManager, SyncExecutor executor, ClientThread clientThread)
 	{
+		this.clientThread = clientThread;
 		this.client = client;
 		this.session = session;
 		this.collector = collector;
@@ -99,6 +107,7 @@ public class ProgressSync
 			lastReading = readCheap();
 			submit(current, lastReading);
 			uploader.submit(current, "quests", collector.quests());
+			uploader.submit(current, "settings", collector.settings());
 		}
 		else if (ticksLoggedIn > FIRST_READ_TICK && ticksLoggedIn % CACHE_EVERY_TICKS == 0)
 		{
@@ -122,6 +131,35 @@ public class ProgressSync
 	}
 
 	@Subscribe
+	public void onVarbitChanged(VarbitChanged event)
+	{
+		if (event.getVarbitId() == VarbitID.OPTION_COLLECTION_NEW_ITEM)
+		{
+			submitSettings();
+		}
+	}
+
+	@Subscribe
+	public void onPluginChanged(PluginChanged event)
+	{
+		if (event.getPlugin() instanceof LootTrackerPlugin)
+		{
+			// Posted from whichever thread toggled it; the reading needs the client thread.
+			clientThread.invoke(this::submitSettings);
+		}
+	}
+
+	/** Sends the settings if they changed; only once the login reading has been taken. */
+	private void submitSettings()
+	{
+		AccountIdentity current = session.getIdentity();
+		if (current != null && current.equals(account) && ticksLoggedIn >= FIRST_READ_TICK)
+		{
+			uploader.submit(current, "settings", collector.settings());
+		}
+	}
+
+	@Subscribe
 	public void onClientShutdown(ClientShutdown event)
 	{
 		if (account != null)
@@ -136,8 +174,7 @@ public class ProgressSync
 	public void onChatMessage(ChatMessage event)
 	{
 		AccountIdentity current = session.getIdentity();
-		if (current == null || event.getType() != ChatMessageType.GAMEMESSAGE
-			|| DevTools.SENDER.equals(event.getName()))
+		if (current == null || event.getType() != ChatMessageType.GAMEMESSAGE)
 		{
 			return;
 		}

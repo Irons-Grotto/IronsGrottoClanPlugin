@@ -1,5 +1,7 @@
 # Validation checklist — plugin 1.0.0 + backend (`mm/plugin-foundations`)
 
+> 2026-09-25: plugin `main` + `mm/m7-plugin-onboarding`; backend `mm/plugin-foundations` (M7 included).
+
 Everything below is built, unit-tested (plugin 35 tests; backend 395 in the touched suites) and
 smoke-tested against the local database with curl. This list is what only a real client can show.
 Tick items as you go; anything that fails, note what you saw and I'll pick it up from here.
@@ -20,9 +22,8 @@ docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='ow
 - [ ] `open -a Docker` → `docker start irons-grotto-pg`
 - [ ] `cd ~/irons-grotto-1/.claude/worktrees/plugin-api/apps/web && yarn dev` (https://localhost:3000)
 - [ ] `cd ~/IronsGrottoClanPlugin && node scripts/dev-relay.mjs` (http://localhost:3001)
-- [ ] `./gradlew shadowJar && java -ea -jar build/libs/irons-grotto-1.0.0-all.jar --developer-mode`
-- [ ] Plugin settings: **Advanced → Server URL = `http://localhost:3001`**; log in, then paste your token into the side panel;
-      Advanced → **Developer tools** on.
+- [ ] `scripts/dev-client.sh` (stops, rebuilds and launches the dev client)
+- [ ] Plugin settings: **Advanced → Server URL = `http://localhost:3001`**; log in, then paste your token into the side panel.
 
 Handy query (latest ledger rows):
 ```sh
@@ -50,12 +51,8 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
       removed for the second account only, and the first account still works after switching back.
       `/plugin` shows each token's account name.
 
-## 3. Event ledger via developer tools — account A
-- [ ] Click **Kill count**, **Drop**, **Clog slot**, **Pet**, **Kill + drop**. Each appears under
-      *Recent activity* marked `[Test]`; Drop/Clog/Pet also get a `[Irons Grotto] [Test] …` chat
-      line within ~5s.
-- [ ] Query above: every row has `{test}` flag; the Kill + drop loot row's payload has
-      `kc`, `kcBoss: Vorkath`, `kcEventId`.
+## 3. Event ledger — account A
+Developer tools are gone; use real events (section 4) on a throwaway account.
 
 ## 4. A real event — account A
 Real play is what the rule tester counts (test events never count). Lower the screenshot threshold
@@ -103,6 +100,29 @@ One-time: `/Applications/RuneLite.app/Contents/MacOS/RuneLite --configure` → c
       Screenshot links open.
 - [ ] *Try an event rule*: `{ "kind": "drop", "sources": ["Chicken"] }` → account A, 1/1, with
       a proof link. `{ "kind": "pet" }` → nobody (only test pets exist).
+
+## 7b. M7 plugin-first onboarding — a GIM (or any non-member) account
+Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a **restarted**
+`yarn dev` (the flag is read at startup). Run the new plugin: `build/libs/irons-grotto-dev.jar`.
+- [ ] Flag off (`false`, restart): `/join` opens on "Welcome to the Grotto", no token is made, and
+      the menu has no "RuneLite plugin" entry. Set it back to `true` and restart.
+- [ ] `/join` opens on **Connect RuneLite** with a token and five steps; "I don't use RuneLite"
+      goes to the name step and "Use RuneLite instead" comes back with the **same** token.
+- [ ] Log in to the GIM account in the dev client, paste the token into the side panel. Within a
+      few seconds: **Paste your token** and **Log in** tick (GIM's name shown), then **Read your
+      progress** (total level, CA tier).
+- [ ] Open the collection log in game → **Open your collection log** ticks with the slot count.
+- [ ] **Check your settings**: turn off RuneLite's Loot Tracker → the step warns and names it;
+      turn it back on → ticks without a reload. Same for the game's collection log chat setting.
+- [ ] The page moves on by itself: Reading RuneLite, Temple, WikiSync, clan record → confirm.
+      No Temple collection log warning on this branch.
+- [ ] Account type: if Temple can't tell it's a GIM, the confirm step asks. Pick Group ironman
+      and the group name (the group must be on Temple's GIM tracking), or "Unranked group
+      ironman".
+- [ ] Set up → reveal. The rank reflects the plugin's collection log (the reveal runs right after
+      the snapshots are applied, not on the plugin's next sync). `/plugin` shows the new token
+      bound to the GIM's name.
+- [ ] Several prospects seen in the last 30 min: step 2 asks which account.
 
 ## 9. Versioning
 - [ ] `curl -s -H 'Authorization: Bearer x' -H 'X-Plugin-Version: 0.9.0' http://localhost:3001/api/plugin/v1/me`

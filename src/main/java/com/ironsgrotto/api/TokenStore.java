@@ -2,7 +2,7 @@ package com.ironsgrotto.api;
 
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.session.AccountIdentity;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -30,7 +30,7 @@ public class TokenStore
 	static final String KEY = "token";
 
 	private final ConfigManager configManager;
-	private volatile Consumer<AccountIdentity> onCleared = account -> { };
+	private volatile BiConsumer<AccountIdentity, String> onCleared = (account, reason) -> { };
 
 	@Inject
 	TokenStore(ConfigManager configManager)
@@ -38,8 +38,8 @@ public class TokenStore
 		this.configManager = configManager;
 	}
 
-	/** Called after the server made us drop an account's token. */
-	public void setOnCleared(Consumer<AccountIdentity> onCleared)
+	/** Called after the server made us drop an account's token, with why. */
+	public void setOnCleared(BiConsumer<AccountIdentity, String> onCleared)
 	{
 		this.onCleared = onCleared;
 	}
@@ -62,10 +62,10 @@ public class TokenStore
 	}
 
 	/** Drops the account's token because the server will never accept it for this account. */
-	public void clearRejected(AccountIdentity account)
+	public void clearRejected(AccountIdentity account, String reason)
 	{
 		remove(account.getAccountHash());
-		onCleared.accept(account);
+		onCleared.accept(account, reason);
 	}
 
 	@Nullable

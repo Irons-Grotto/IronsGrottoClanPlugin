@@ -5,6 +5,11 @@
 // does not trust. This relays plain HTTP on :3001 to it, so the plugin can use
 // Server URL = http://localhost:3001.
 //
+// Only the plugin API is relayed. Anything else is a browser following a link
+// out of the plugin (e.g. "Get a token"), and is redirected to the dev site
+// itself: proxied pages break server actions, which refuse a request whose
+// Origin (:3001) is not the host (:3000).
+//
 //   node scripts/dev-relay.mjs
 import http from 'node:http';
 import https from 'node:https';
@@ -13,6 +18,12 @@ const port = Number(process.env.RELAY_PORT ?? 3001);
 
 http
   .createServer((req, res) => {
+    if (!req.url?.startsWith('/api/plugin/')) {
+      res.writeHead(307, { location: `https://localhost:3000${req.url ?? '/'}` });
+      res.end();
+      return;
+    }
+
     const upstream = https.request(
       {
         host: 'localhost',

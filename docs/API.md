@@ -10,6 +10,8 @@
   plugin pauses its outbox/screenshots/progress (keeps the data) and tells the member to update.
 - Plugin routes are **token-only**: middleware rejects `/api/plugin/**` without a bearer token and
   never reads a session there; site routes never accept tokens. Two auth primitives, never both.
+  The one exception is `/api/plugin/v1/public/**`: no auth at all, public data only, rate limited
+  per address.
 
 Backend lives in `~/irons-grotto-1/apps/web/app/api/plugin/v1/` (shared helpers in `../utils/`). Keep this file in sync with both
 sides; the plugin's DTOs are in `src/main/java/com/ironsgrotto/api/model/`.
@@ -34,6 +36,18 @@ Otherwise linked; `playerName` is null for non-members.
 Envelope: `{ "success": true, "data": … }` or `{ "success": false, "error": "…", "code"?: "…" }`.
 `code` is set only where the plugin acts on it: on `token_account_mismatch` or
 `account_not_yours` it deletes the token it holds for that account and asks for a new one.
+
+Getting a token: with no token for the logged-in account, the panel asks
+`GET /public/registration` (below). Registered → "Get a token" opens `<Server URL>/plugin?name=<rsn>`,
+which makes a token named after the account on arrival (a name in use gets a number, "EclipseGoon
+2"; a reload replaces the unused one). Not registered → "Join Irons Grotto" opens `/join`, which
+makes the token.
+
+## `GET /api/plugin/v1/public/registration?rsn=<name>`
+**Public**: no token, no account headers; `X-Plugin-Version` still required (400/426 as above).
+30 requests/min per address (429 + `Retry-After`). Response `data`: `{ "registered": boolean }`,
+true when a `players` row has that name (case-insensitive, active or not). Nothing else is
+returned.
 
 Plugin storage: tokens live per game account in RuneLite's RS-profile config (`TokenStore`),
 looked up by account hash, so a token is never sent for another account (e.g. a friend on the same
@@ -63,6 +77,8 @@ Request (≤ 50 events, all for the header account):
 { "events": [ { "id": "<uuid, client-generated>", "type": "loot|collection_log_item|boss_kc|pet",
                 "occurredAt": "2026-09-24T12:00:00Z", "payload": { … }, "test": false } ] }
 ```
+`test` is optional and still accepted; the plugin no longer sends it (its developer tools were
+removed).
 Payloads (`apps/web/app/schemas/plugin-ledger.ts`):
 - `loot`: `{ source, sourceType (NPC|PLAYER|EVENT|PICKPOCKET|UNKNOWN), combatLevel?, items:[{id,name,quantity,price}], totalValue }`
   — totalValue recomputed server-side.

@@ -13,6 +13,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -157,7 +158,7 @@ public class GrottoApiClientTest
 	public void dropsTheTokenWhenTheServerSaysItIsForAnotherAccount()
 	{
 		AccountIdentity[] cleared = new AccountIdentity[1];
-		tokens.setOnCleared(account -> cleared[0] = account);
+		tokens.setOnCleared((account, reason) -> cleared[0] = account);
 		server.enqueue(new MockResponse().setResponseCode(403)
 			.setBody("{\"success\":false,\"error\":\"This token is for a different account.\",\"code\":\"token_account_mismatch\"}"));
 
@@ -192,5 +193,81 @@ public class GrottoApiClientTest
 		}
 
 		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
+
+	@Test
+	public void checksAPastedTokenWithoutUsingTheSavedOne() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{}}"));
+
+		client.checkToken(ACCOUNT, " igp_pasted ").get();
+
+		assertEquals("Bearer igp_pasted", server.takeRequest().getHeader("Authorization"));
+		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
+
+	@Test
+	public void aRefusedCandidateNeverClearsTheSavedToken()
+	{
+		server.enqueue(new MockResponse().setResponseCode(403)
+			.setBody("{\"success\":false,\"error\":\"This token is for a different account.\",\"code\":\"token_account_mismatch\"}"));
+
+		try
+		{
+			client.checkToken(ACCOUNT, "igp_other").get();
+			fail("expected an error");
+		}
+		catch (InterruptedException | ExecutionException e)
+		{
+			assertTrue(((ApiException) e.getCause()).isTokenRejectedForAccount());
+		}
+
+		assertEquals("igp_test", tokens.get(ACCOUNT));
+	}
+
+	@Test
+	public void asksWhetherANameIsRegisteredWithoutAnyCredentials() throws Exception
+	{
+		tokens.set(ACCOUNT, "igp_secret");
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":true}}"));
+
+		assertTrue(client.checkRegistration("Iron Dude").get());
+
+		RecordedRequest request = server.takeRequest();
+		assertEquals("/api/plugin/v1/public/registration?rsn=Iron%20Dude", request.getPath());
+		assertNull(request.getHeader("Authorization"));
+		assertNull(request.getHeader("X-Account-Hash"));
+		assertEquals(GrottoApiClient.PLUGIN_VERSION, request.getHeader("X-Plugin-Version"));
+	}
+
+	@Test
+	public void readsAnUnregisteredName() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":false}}"));
+
+		assertFalse(client.checkRegistration("Nobody Here").get());
+	}
+
+	@Test
+	public void dropsATokenTheServerNoLongerRecognises()
+	{
+		String[] reason = new String[1];
+		tokens.setOnCleared((account, why) -> reason[0] = why);
+		server.enqueue(new MockResponse().setResponseCode(401)
+			.setBody("{\"success\":false,\"error\":\"Invalid or revoked plugin token\"}"));
+
+		try
+		{
+			client.postBlocking(GrottoApiClient.API_PREFIX + "/events", ACCOUNT, new Object(), Object.class);
+			fail("expected an error");
+		}
+		catch (ApiException e)
+		{
+			assertTrue(e.isTokenDead());
+			assertTrue(e.isClientBlocked());
+		}
+
+		assertEquals("", tokens.get(ACCOUNT));
+		assertTrue(reason[0].contains("revoked"));
 	}
 }

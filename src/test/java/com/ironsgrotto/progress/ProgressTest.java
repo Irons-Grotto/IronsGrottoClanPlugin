@@ -67,6 +67,15 @@ public class ProgressTest
 	}
 
 	@Test
+	public void collectionLogChatIsBitOneOfTheSetting()
+	{
+		assertFalse(ProgressRules.collectionLogChatEnabled(0));
+		assertTrue(ProgressRules.collectionLogChatEnabled(1));
+		assertFalse(ProgressRules.collectionLogChatEnabled(2));
+		assertTrue(ProgressRules.collectionLogChatEnabled(3));
+	}
+
+	@Test
 	public void sendsEachCategoryOnceUntilItChanges()
 	{
 		RecordingApi api = new RecordingApi();

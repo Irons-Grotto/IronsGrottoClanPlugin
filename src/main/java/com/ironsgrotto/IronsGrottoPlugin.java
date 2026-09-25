@@ -7,7 +7,6 @@ import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
 import com.ironsgrotto.api.model.PluginPolicy;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.ledger.LedgerRecorder;
 import com.ironsgrotto.outbox.Outbox;
 import com.ironsgrotto.outbox.OutboxEntry;
@@ -104,8 +103,6 @@ public class IronsGrottoPlugin extends Plugin
 	@Inject
 	private LootEventTracker lootTracker;
 
-	@Inject
-	private DevTools devTools;
 
 	@Inject
 	private ScreenshotService screenshots;
@@ -129,6 +126,8 @@ public class IronsGrottoPlugin extends Plugin
 
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
+	/** Names the site said are registered, this session. */
+	private final Map<String, Boolean> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
 	@Provides
 	IronsGrottoConfig provideConfig(ConfigManager configManager)
@@ -140,9 +139,8 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp()
 	{
 		executor.start();
-		panel = new GrottoPanel(tokenPageUrl(), devTools);
-		panel.setDevToolsVisible(config.developerTools());
-		panel.setOnTokenEntered(this::saveToken);
+		panel = new GrottoPanel(siteUrl());
+		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()
@@ -242,10 +240,6 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 
-		if ("developerTools".equals(event.getKey()))
-		{
-			panel.setDevToolsVisible(config.developerTools());
-		}
 
 		if ("apiBaseUrl".equals(event.getKey()))
 		{
@@ -254,28 +248,84 @@ public class IronsGrottoPlugin extends Plugin
 		}
 	}
 
-	/** A token pasted into the panel, for the account logged in now. */
-	private void saveToken(String token)
+	/**
+	 * A token pasted into the panel, for the account logged in now. Tried
+	 * with the server first and saved only if it is accepted, which also
+	 * binds it to this account.
+	 */
+	private void checkToken(String token)
 	{
 		AccountIdentity identity = session.getIdentity();
 		if (identity == null)
 		{
 			return;
 		}
-		tokens.set(identity, token);
-		// Anything waiting for a token goes now; the first request binds it.
-		outbox.resume();
-		refresh();
+
+		api.checkToken(identity, token)
+			.thenAccept(me ->
+			{
+				tokens.set(identity, token);
+				// Anything waiting for a token goes now.
+				outbox.resume();
+				refresh();
+			})
+			.exceptionally(error ->
+			{
+				Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+				panel.showNoToken(identity.getRsn(), tokenCheckMessage(cause));
+				return null;
+			});
+	}
+
+	private static String tokenCheckMessage(Throwable cause)
+	{
+		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized())
+		{
+			return "Token not accepted. Check it's copied in full, or get a new one.";
+		}
+		return cause.getMessage() != null ? cause.getMessage() : "Can't reach the Irons Grotto server.";
+	}
+
+	/**
+	 * Whether a token-less account is on the site, so the panel sends it to
+	 * the right place. Asked once per name per session; a failed lookup
+	 * leaves the default ("Get a token") in place.
+	 */
+	private void lookUpRegistration(String rsn)
+	{
+		Boolean known = registrations.get(rsn);
+		if (known != null)
+		{
+			panel.showTokenSource(rsn, known);
+			return;
+		}
+
+		api.checkRegistration(rsn)
+			.thenAccept(registered ->
+			{
+				// Only a "yes" is kept: a new member who joins mid-session is
+				// asked again next time and sent to "Get a token".
+				if (registered)
+				{
+					registrations.put(rsn, true);
+				}
+				panel.showTokenSource(rsn, registered);
+			})
+			.exceptionally(error ->
+			{
+				log.debug("Could not check whether {} is registered", rsn, error);
+				return null;
+			});
 	}
 
 	/** The server will never take this account's token; ask for another. */
-	private void tokenRejected(AccountIdentity account)
+	private void tokenRejected(AccountIdentity account, String reason)
 	{
-		String message = "That token is for a different account. Paste a token for " + account.getRsn() + ".";
-		chat(message);
+		chat(reason);
 		if (account.equals(session.getIdentity()))
 		{
-			panel.showNoToken(account.getRsn(), message);
+			panel.showNoToken(account.getRsn(), reason);
+			lookUpRegistration(account.getRsn());
 		}
 	}
 
@@ -323,6 +373,7 @@ public class IronsGrottoPlugin extends Plugin
 		if (!tokens.has(identity))
 		{
 			panel.showNoToken(identity.getRsn(), null);
+			lookUpRegistration(identity.getRsn());
 			return null;
 		}
 		return identity;
@@ -332,19 +383,13 @@ public class IronsGrottoPlugin extends Plugin
 	{
 		Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
 
-		if (cause instanceof ApiException && ((ApiException) cause).isTokenRejectedForAccount())
+		if (cause instanceof ApiException && ((ApiException) cause).isTokenDead())
 		{
 			// Already handled: the token is gone and the panel asks for another.
 			return null;
 		}
 
-		AccountIdentity identity = session.getIdentity();
-		if (cause instanceof ApiException && ((ApiException) cause).isUnauthorized() && identity != null)
-		{
-			// Revoked or mistyped. Kept, in case it was a typo; a new paste replaces it.
-			panel.showNoToken(identity.getRsn(), "Token not accepted. Paste a new one.");
-		}
-		else if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
+		if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
 		{
 			// Nothing recorded is lost: the outbox and screenshots wait for the update.
 			panel.showError(cause.getMessage());
@@ -427,9 +472,9 @@ public class IronsGrottoPlugin extends Plugin
 			.build());
 	}
 
-	private String tokenPageUrl()
+	private String siteUrl()
 	{
-		return config.apiBaseUrl().replaceAll("/+$", "") + "/plugin";
+		return config.apiBaseUrl().replaceAll("/+$", "");
 	}
 
 	/** Body of {@code POST /api/plugin/events}; the account travels in headers. */
@@ -443,7 +488,7 @@ public class IronsGrottoPlugin extends Plugin
 			this.events = new ArrayList<>();
 			for (OutboxEntry entry : batch)
 			{
-				events.add(new EventDto(entry.getId(), entry.getType(), entry.getOccurredAt(), entry.getPayload(), entry.isTest()));
+				events.add(new EventDto(entry.getId(), entry.getType(), entry.getOccurredAt(), entry.getPayload()));
 			}
 		}
 	}
@@ -455,7 +500,6 @@ public class IronsGrottoPlugin extends Plugin
 		private final String type;
 		private final String occurredAt;
 		private final JsonObject payload;
-		private final boolean test;
 	}
 
 	@Data

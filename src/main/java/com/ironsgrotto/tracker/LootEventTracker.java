@@ -34,9 +34,6 @@ public class LootEventTracker
 	private final LedgerRecorder recorder;
 	private final ItemManager itemManager;
 
-	/** Set by the developer tools around a loot event they post. */
-	private volatile boolean simulating;
-
 	@Inject
 	LootEventTracker(LedgerRecorder recorder, ItemManager itemManager)
 	{
@@ -66,20 +63,6 @@ public class LootEventTracker
 			return;
 		}
 		record(event.getName(), event.getType(), event.getCombatLevel(), event.getItems());
-	}
-
-	/** Posts a loot event marked as a test; called on the client thread. */
-	public void simulate(Runnable post)
-	{
-		simulating = true;
-		try
-		{
-			post.run();
-		}
-		finally
-		{
-			simulating = false;
-		}
 	}
 
 	private void record(String source, LootRecordType type, int combatLevel, Collection<ItemStack> stacks)
@@ -126,6 +109,6 @@ public class LootEventTracker
 		payload.add("items", items);
 		payload.addProperty("totalValue", total);
 
-		recorder.record(LedgerEventType.LOOT, payload, simulating);
+		recorder.record(LedgerEventType.LOOT, payload);
 	}
 }

@@ -26,16 +26,9 @@ public class OutboxEntry
 	private String occurredAt;
 	private JsonObject payload;
 	private AccountIdentity account;
-	/** Spawned by the developer tools; the server flags it and consumers ignore it. */
-	private boolean test;
 
 	public static OutboxEntry create(String type, JsonObject payload, AccountIdentity account, Instant occurredAt)
 	{
-		return create(type, payload, account, occurredAt, false);
-	}
-
-	public static OutboxEntry create(String type, JsonObject payload, AccountIdentity account, Instant occurredAt, boolean test)
-	{
-		return new OutboxEntry(UUID.randomUUID().toString(), type, occurredAt.toString(), payload, account, test);
+		return new OutboxEntry(UUID.randomUUID().toString(), type, occurredAt.toString(), payload, account);
 	}
 }

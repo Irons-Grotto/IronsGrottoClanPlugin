@@ -11,6 +11,9 @@ import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 
 /**
  * Reads account progress straight from the game. Every method must run on
@@ -20,11 +23,40 @@ import net.runelite.api.gameval.VarbitID;
 public class ProgressCollector
 {
 	private final Client client;
+	private final PluginManager pluginManager;
 
 	@Inject
-	ProgressCollector(Client client)
+	ProgressCollector(Client client, PluginManager pluginManager)
 	{
 		this.client = client;
+		this.pluginManager = pluginManager;
+	}
+
+	/**
+	 * The client settings tracking depends on, so onboarding can ask the
+	 * member to fix them: the game's chat message for a new collection log
+	 * slot (how new slots are seen), and RuneLite's Loot Tracker plugin
+	 * (which posts raid, clue and other non-NPC loot).
+	 */
+	public JsonObject settings()
+	{
+		JsonObject settings = new JsonObject();
+		settings.addProperty("collectionLogChat",
+			ProgressRules.collectionLogChatEnabled(client.getVarbitValue(VarbitID.OPTION_COLLECTION_NEW_ITEM)));
+		settings.addProperty("lootTracker", isLootTrackerEnabled());
+		return settings;
+	}
+
+	private boolean isLootTrackerEnabled()
+	{
+		for (Plugin plugin : pluginManager.getPlugins())
+		{
+			if (plugin instanceof LootTrackerPlugin)
+			{
+				return pluginManager.isPluginEnabled(plugin);
+			}
+		}
+		return false;
 	}
 
 	@SuppressWarnings("deprecation")

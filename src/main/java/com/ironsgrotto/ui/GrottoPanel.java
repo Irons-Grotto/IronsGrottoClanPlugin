@@ -3,7 +3,6 @@ package com.ironsgrotto.ui;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
-import com.ironsgrotto.dev.DevTools;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
 import java.awt.BorderLayout;
@@ -11,6 +10,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,6 +20,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -29,6 +31,9 @@ import javax.swing.JPasswordField;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -51,7 +56,6 @@ public class GrottoPanel extends PluginPanel
 	private final JPanel accountSection = section();
 	private final JPanel eventSection = section();
 	private final JPanel activitySection = section();
-	private final JPanel devSection = section();
 	private final JLabel pendingLabel = new JLabel();
 
 	{
@@ -60,13 +64,24 @@ public class GrottoPanel extends PluginPanel
 	}
 	private final Deque<OutboxEntry> recent = new ArrayDeque<>();
 	private final String tokenUrl;
+	private final String joinUrl;
+	/** The token prompt's explanation and link, swapped once we know if the account is registered. */
+	private final JPanel tokenIntro = inline();
+	private final JPanel tokenLink = inline();
+	@Nullable
+	private String tokenPromptRsn;
 	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
+	/** Quiet time after the last keystroke before a token is checked. */
+	private static final int TOKEN_SETTLE_MS = 400;
+	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
 
-	public GrottoPanel(String tokenUrl, DevTools devTools)
+	/** @param siteUrl the Irons Grotto site, e.g. https://ironsgrotto.xyz */
+	public GrottoPanel(String siteUrl)
 	{
-		this.tokenUrl = tokenUrl;
+		this.tokenUrl = siteUrl + "/plugin";
+		this.joinUrl = siteUrl + "/join";
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -92,8 +107,6 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
-		content.add(devSection);
-		content.add(Box.createVerticalStrut(8));
 
 		// No buttons and no "all good" status: the plugin syncs by itself, and
 		// the panel only speaks up when the member has something to do.
@@ -102,7 +115,6 @@ public class GrottoPanel extends PluginPanel
 
 		add(content, BorderLayout.NORTH);
 
-		buildDevSection(devTools);
 		renderRecent();
 		showLoggedOut();
 		setPendingCount(0);
@@ -137,34 +149,109 @@ public class GrottoPanel extends PluginPanel
 			status(problem == null ? "" : "<html>" + escape(problem) + "</html>");
 			accountSection.removeAll();
 			accountSection.add(heading("Connect " + rsn));
-			accountSection.add(wrapped("Paste a token from the Irons Grotto site. Each account needs its own."));
+			tokenPromptRsn = rsn;
+			fillTokenHelp(rsn, true);
+			accountSection.add(tokenIntro);
 			accountSection.add(Box.createVerticalStrut(6));
 
+			// No save button: a complete token is checked with the server as
+			// soon as it is pasted, and saved only if the server takes it.
 			JPasswordField field = new JPasswordField();
 			field.setAlignmentX(Component.LEFT_ALIGNMENT);
 			field.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, field.getPreferredSize().height));
-			JButton save = new JButton("Save token");
-			save.setAlignmentX(Component.LEFT_ALIGNMENT);
-			Runnable submit = () ->
+			Timer settle = new Timer(TOKEN_SETTLE_MS, e ->
 			{
 				String token = new String(field.getPassword()).trim();
-				if (!token.isEmpty())
+				if (looksLikeToken(token))
 				{
+					field.setEnabled(false);
+					status("Checking token…");
 					onTokenEntered.accept(token);
 				}
-			};
-			field.addActionListener(e -> submit.run());
-			save.addActionListener(e -> submit.run());
+			});
+			settle.setRepeats(false);
+			field.getDocument().addDocumentListener(new DocumentListener()
+			{
+				@Override
+				public void insertUpdate(DocumentEvent e)
+				{
+					settle.restart();
+				}
+
+				@Override
+				public void removeUpdate(DocumentEvent e)
+				{
+					settle.restart();
+				}
+
+				@Override
+				public void changedUpdate(DocumentEvent e)
+				{
+				}
+			});
 
 			accountSection.add(field);
 			accountSection.add(Box.createVerticalStrut(6));
-			accountSection.add(save);
-			accountSection.add(Box.createVerticalStrut(6));
-			accountSection.add(linkButton("Get a token", tokenUrl));
+			accountSection.add(tokenLink);
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
 			revalidateAll();
 		});
+	}
+
+	/**
+	 * Points the token prompt at the right place once the server says whether
+	 * the account is on the site: a registered account gets a token straight
+	 * from {@code /plugin}; a new one joins, and {@code /join} makes its token.
+	 */
+	public void showTokenSource(String rsn, boolean registered)
+	{
+		onEdt(() ->
+		{
+			if (rsn.equals(tokenPromptRsn))
+			{
+				fillTokenHelp(rsn, registered);
+				revalidateAll();
+			}
+		});
+	}
+
+	private void fillTokenHelp(String rsn, boolean registered)
+	{
+		tokenIntro.removeAll();
+		tokenLink.removeAll();
+		if (registered)
+		{
+			tokenIntro.add(wrapped("Get a token for this account and paste it here."));
+			tokenLink.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
+		}
+		else
+		{
+			tokenIntro.add(wrapped(rsn + " isn't in Irons Grotto yet. Join to get a token, then paste it here."));
+			tokenLink.add(linkButton("Join Irons Grotto", joinUrl));
+		}
+	}
+
+	/**
+	 * A whole token rather than part of one being typed: the prefix and the
+	 * full length of the random part. Only then is it worth asking the server.
+	 */
+	static boolean looksLikeToken(String text)
+	{
+		return TOKEN_SHAPE.matcher(text).matches();
+	}
+
+	/** The token page, naming the account so the new token is labelled with it. */
+	static String tokenUrlFor(String tokenUrl, String rsn)
+	{
+		try
+		{
+			return tokenUrl + "?name=" + URLEncoder.encode(rsn, "UTF-8").replace("+", "%20");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			return tokenUrl;
+		}
 	}
 
 	public void showError(String message)
@@ -177,6 +264,7 @@ public class GrottoPanel extends PluginPanel
 		onEdt(() ->
 		{
 			accountSection.removeAll();
+			tokenPromptRsn = null;
 			MemberStatus member = me.getMember();
 
 			accountSection.add(heading(me.getRsn()));
@@ -284,15 +372,6 @@ public class GrottoPanel extends PluginPanel
 		});
 	}
 
-	public void setDevToolsVisible(boolean visible)
-	{
-		onEdt(() ->
-		{
-			devSection.setVisible(visible);
-			revalidateAll();
-		});
-	}
-
 	private void renderRecent()
 	{
 		activitySection.removeAll();
@@ -306,7 +385,7 @@ public class GrottoPanel extends PluginPanel
 		activitySection.add(heading("Recent activity"));
 		for (OutboxEntry entry : recent)
 		{
-			activitySection.add(small((entry.isTest() ? "[Test] " : "") + describe(entry)));
+			activitySection.add(small(describe(entry)));
 		}
 
 		activitySection.setVisible(true);
@@ -330,30 +409,6 @@ public class GrottoPanel extends PluginPanel
 			default:
 				return entry.getType();
 		}
-	}
-
-	private void buildDevSection(DevTools devTools)
-	{
-		devSection.add(heading("Developer tools"));
-		devSection.add(wrapped("Spawns test events. They never count for clan events."));
-		devSection.add(Box.createVerticalStrut(4));
-
-		JPanel buttons = new JPanel(new GridLayout(3, 2, 4, 4));
-		buttons.setOpaque(false);
-		buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-		buttons.add(devButton("Kill count", devTools::spawnKillCount));
-		buttons.add(devButton("Drop", devTools::spawnDrop));
-		buttons.add(devButton("Clog slot", devTools::spawnCollectionLog));
-		buttons.add(devButton("Pet", devTools::spawnPet));
-		buttons.add(devButton("Kill + drop", devTools::spawnKillWithDrop));
-		devSection.add(buttons);
-	}
-
-	private static JButton devButton(String text, Runnable action)
-	{
-		JButton button = new JButton(text);
-		button.addActionListener(e -> action.run());
-		return button;
 	}
 
 	public void setPendingCount(int pending)
@@ -413,6 +468,16 @@ public class GrottoPanel extends PluginPanel
 		panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.setVisible(false);
+		return panel;
+	}
+
+	/** A see-through holder that stacks its children, for parts of a section that change. */
+	private static JPanel inline()
+	{
+		JPanel panel = new JPanel();
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		panel.setOpaque(false);
+		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		return panel;
 	}
 

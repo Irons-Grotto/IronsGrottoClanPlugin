@@ -67,7 +67,7 @@ public class KillLootLinker
 		if (LedgerEventType.BOSS_KC.equals(entry.getType()))
 		{
 			String key = normalise(payload.get("boss").getAsString());
-			Pending loot = take(loots, key, now, LOOT_BEFORE_KC_MS, entry.isTest());
+			Pending loot = take(loots, key, now, LOOT_BEFORE_KC_MS);
 
 			if (loot != null)
 			{
@@ -82,7 +82,7 @@ public class KillLootLinker
 		else if (LedgerEventType.LOOT.equals(entry.getType()))
 		{
 			String key = normalise(payload.get("source").getAsString());
-			Pending kill = take(kills, key, now, KC_BEFORE_LOOT_MS, entry.isTest());
+			Pending kill = take(kills, key, now, KC_BEFORE_LOOT_MS);
 
 			if (kill != null)
 			{
@@ -98,10 +98,10 @@ public class KillLootLinker
 		}
 	}
 
-	private static Pending take(Map<String, Pending> pending, String key, long now, long window, boolean test)
+	private static Pending take(Map<String, Pending> pending, String key, long now, long window)
 	{
 		Pending candidate = pending.get(key);
-		if (candidate == null || now - candidate.at > window || candidate.entry.isTest() != test)
+		if (candidate == null || now - candidate.at > window)
 		{
 			return null;
 		}
