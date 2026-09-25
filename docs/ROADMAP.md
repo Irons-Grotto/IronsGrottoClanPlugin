@@ -6,10 +6,12 @@
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
 ## Status (session 2026-09-25, continued)
-- **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 in progress.**
+- **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 done** (plugin repo
+  on GitHub, `main` pushed, CI green). **M7 built**, behind `IS_GROTTO_PLUGIN_ENABLED`, not yet
+  tried in game (VALIDATION 7b). Plugin branch `mm/m7-plugin-onboarding`.
   - Backend: `~/irons-grotto-1/.claude/worktrees/plugin-api`, branch `mm/plugin-foundations`,
     unpushed. Migrations 0000–0029 (0029 = `plugin_tokens.account_hash`).
-  - Plugin: this repo, `mm/plugin-foundations`; pushed as `main` once M6.5 lands. Version stays
+  - Plugin: this repo, `main` on `Irons-Grotto/IronsGrottoClanPlugin` (private). Version stays
     1.0.0 until the first Plugin Hub release.
 - **Token model (done):** one token, one game account. Server binds a token to its first account
   and refuses others (`token_account_mismatch`; someone else's account is `account_not_yours`).
@@ -23,9 +25,8 @@
   `irons-grotto-sync` thread.
 
 ## Next steps (in order)
-1. **M6.5 repo up and running** (below).
-2. **M7 plugin-first onboarding (P0)**, spec below. Backend groundwork is committed (status
-   endpoint, client settings, snapshot merging).
+1. **Try M7 in game** (VALIDATION 7b, user's GIM account), then merge the plugin PR.
+2. Needs you: `DISCORD_RELEASE_WEBHOOK` secret on the plugin repo (M6.5).
 3. Spot-check the unverified items above with `build/libs/irons-grotto-dev.jar`.
 4. "Needs you" list in VALIDATION.md: confirm BSD-2 license, backend PR (needs a `member-summary`
    block), prod `DISCORD_DROPS_CHANNEL_ID`, Plugin Hub submission.
@@ -41,13 +42,23 @@
   member-summary block.
 - [x] Clan Discord updates: `announce-merge.yaml` (modelled on irons-grotto-1's) posts each merged
   PR's member summary as "Irons Grotto Plugin Update".
-- [ ] Push `mm/plugin-foundations` as `main` on `Irons-Grotto/IronsGrottoClanPlugin` (empty,
-  private).
+- [x] Pushed as `main` on `Irons-Grotto/IronsGrottoClanPlugin` (private); default branch set;
+  CI green.
 - [ ] **Needs you:** repo secret `DISCORD_RELEASE_WEBHOOK` (the same webhook irons-grotto-1 uses,
   or a new one): `gh secret set DISCORD_RELEASE_WEBHOOK -R Irons-Grotto/IronsGrottoClanPlugin`.
 - [ ] Optional: branch protection on `main` requiring CI.
 
-## M7 Plugin-first onboarding (P0, user 2026-09-25)
+## M7 Plugin-first onboarding (P0, user 2026-09-25) — built
+- **Flag:** `IS_GROTTO_PLUGIN_ENABLED` (deploy-time, `config/feature-flags.ts`, inlined via
+  `next.config.ts` `env`). Off: `/join` is the name lookup only and the menu hides "RuneLite
+  plugin". The plugin API and `/plugin` stay reachable by URL (testers, Hub reviewers). **Keep off
+  in production until Plugin Hub approval.** On locally.
+- **Built:** `components/plugin-setup.tsx` (steps, token, polling), `utils/resolve-plugin-steps.ts`
+  (pure, spec'd), `GET /api/join/plugin-status` (session only; accounts seen in the last 30 min),
+  `addPlayerAction` `pluginAccountHash` (ownership + name match, game total level for the gate,
+  link + apply snapshots before the reveal), plugin reports `settings` on login and on change.
+- **Not built from the spec:** nothing. Differences: token step also counts a plugin already
+  speaking for an account (token pasted earlier); settings step has "Continue without".
 - **Shape:** `/join` stays the single-page, phase-driven `JoinExperience`. One branch near the start
   (the token step): **iff** the member uses the plugin, follow the plugin phases; otherwise continue
   the existing scan flow unchanged. Both rejoin at confirm → reveal → apply. No new routes.
