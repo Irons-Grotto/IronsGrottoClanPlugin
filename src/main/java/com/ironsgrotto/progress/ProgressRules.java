@@ -37,4 +37,13 @@ public final class ProgressRules
 		}
 		return tier;
 	}
+
+	/**
+	 * Whether the game's "new collection log item" setting includes the chat
+	 * message: bit 1 of the varbit is chat, bit 2 the popup.
+	 */
+	public static boolean collectionLogChatEnabled(int settingValue)
+	{
+		return (settingValue & 1) != 0;
+	}
 }
