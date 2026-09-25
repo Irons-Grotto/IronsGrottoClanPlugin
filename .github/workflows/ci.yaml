@@ -1,0 +1,74 @@
+name: CI
+
+# Builds the plugin and runs the tests on every pull request and on main.
+# `./gradlew build` is the same command CLAUDE.md asks for locally.
+on:
+  pull_request:
+    # `edited`: fixing the PR description re-runs the member-summary check.
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same branch supersedes the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 11: the Plugin Hub builds plugins against it.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
+        run: ./gradlew build --no-daemon
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/
+
+  # Every PR is announced to the clan from its member-summary block (see
+  # announce-merge.yaml and "Announcing a change" in CLAUDE.md). A PR without
+  # one would merge silently, so it fails here instead, while it can still be
+  # fixed by editing the PR description.
+  member-summary:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the PR body has a member summary
+        env:
+          # Untrusted input: passed through the environment, never
+          # interpolated into the script.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          summary=$(
+            printf '%s\n' "${PR_BODY:-}" \
+              | tr -d '\r' \
+              | awk '
+                  /<!--[[:space:]]*member-summary:start[[:space:]]*-->/ { grab = 1; next }
+                  /<!--[[:space:]]*member-summary:end[[:space:]]*-->/   { grab = 0 }
+                  grab
+                ' \
+              | sed '/^[[:space:]]*$/d'
+          )
+          if [ -z "$summary" ]; then
+            echo "::error::Add a member-summary block to the PR description. See 'Announcing a change' in CLAUDE.md."
+            exit 1
+          fi
+          echo "Will announce:"
+          echo "$summary"

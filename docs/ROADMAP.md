@@ -5,26 +5,47 @@
 > [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md) (who owns what data), [`API.md`](API.md) (contract),
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
-## Status (end of session 2026-09-25)
-- **M1–M6 built**, committed, all tests green. Nothing pushed yet.
+## Status (session 2026-09-25, continued)
+- **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 in progress.**
   - Backend: `~/irons-grotto-1/.claude/worktrees/plugin-api`, branch `mm/plugin-foundations`,
-    23 commits ahead of `origin/main`, clean tree.
-  - Plugin: this repo, branch `mm/plugin-foundations`, 20 commits, clean tree. Release 1.0.0.
-- **Verified in game** (user's account Aceriwyn + test account "Irons Grotto"): linking, panel, dev-tool
-  events → ledger, login progress sync, full collection log sync (814 items), SOTW/BOTW + top 5.
-- **Built but not yet seen in game:** logout / client-close sync, new-log-slot sync via the
-  last-obtained varp, the copy overhaul (panel, settings, site, chat, Discord), dedicated
-  `irons-grotto-sync` thread. User should run the dev jar (below) and spot-check.
+    unpushed. Migrations 0000–0029 (0029 = `plugin_tokens.account_hash`).
+  - Plugin: this repo, `mm/plugin-foundations`; pushed as `main` once M6.5 lands. Version stays
+    1.0.0 until the first Plugin Hub release.
+- **Token model (done):** one token, one game account. Server binds a token to its first account
+  and refuses others (`token_account_mismatch`; someone else's account is `account_not_yours`).
+  Plugin keeps tokens per account in RuneLite RS-profile config (`TokenStore`) and deletes the
+  one the server refuses. Paste box is in the side panel. Why: a global token was sent for any
+  account on the client, so a friend on your machine got linked to your Discord and claimed.
+- **Verified in game** (Aceriwyn + test account "Irons Grotto"): linking, panel, dev-tool events →
+  ledger, login progress sync, full collection log sync (814 items), SOTW/BOTW + top 5.
+- **Built but not yet seen in game:** per-account tokens and the mismatch flow (VALIDATION), logout /
+  client-close sync, new-log-slot sync via the last-obtained varp, the copy overhaul, dedicated
+  `irons-grotto-sync` thread.
 
 ## Next steps (in order)
-1. **Spot-check the unverified items above** with `build/libs/irons-grotto-dev.jar`.
-2. **M7 plugin-first onboarding (P0)**, spec below.
-3. "Needs you" list in VALIDATION.md: confirm BSD-2 license, push both branches + PRs (backend PR
-   needs a `member-summary` block), prod `DISCORD_DROPS_CHANNEL_ID`, plugin repo secret
-   `DISCORD_RELEASE_WEBHOOK`, Plugin Hub submission.
-4. Optional, offered to user, not requested: read at logout instead of cached reading; CA task ids
-   (retires WikiSync); game-mode varbit (account type); flag in-game renames for staff; apply the
-   notable-only filter to the Temple clog path too; strip dashes from internal docs.
+1. **M6.5 repo up and running** (below).
+2. **M7 plugin-first onboarding (P0)**, spec below. Backend groundwork is committed (status
+   endpoint, client settings, snapshot merging).
+3. Spot-check the unverified items above with `build/libs/irons-grotto-dev.jar`.
+4. "Needs you" list in VALIDATION.md: confirm BSD-2 license, backend PR (needs a `member-summary`
+   block), prod `DISCORD_DROPS_CHANNEL_ID`, Plugin Hub submission.
+5. Optional, offered to user, not requested: pairing flow instead of pasting tokens (plugin shows
+   a code, member approves on the site; needs an unauthenticated pairing route); read at logout
+   instead of cached reading; CA task ids (retires WikiSync); game-mode varbit (account type); flag
+   in-game renames for staff; notable-only filter on the Temple clog path; strip dashes from
+   internal docs.
+
+## M6.5 Repo up and running (user 2026-09-25)
+- [x] `AGENTS.md`: working knowledge (RuneLite storage/game state/threads, dev pitfalls).
+- [x] CI: `.github/workflows/ci.yaml`, `./gradlew build` on PRs and main; fails a PR without a
+  member-summary block.
+- [x] Clan Discord updates: `announce-merge.yaml` (modelled on irons-grotto-1's) posts each merged
+  PR's member summary as "Irons Grotto Plugin Update".
+- [ ] Push `mm/plugin-foundations` as `main` on `Irons-Grotto/IronsGrottoClanPlugin` (empty,
+  private).
+- [ ] **Needs you:** repo secret `DISCORD_RELEASE_WEBHOOK` (the same webhook irons-grotto-1 uses,
+  or a new one): `gh secret set DISCORD_RELEASE_WEBHOOK -R Irons-Grotto/IronsGrottoClanPlugin`.
+- [ ] Optional: branch protection on `main` requiring CI.
 
 ## M7 Plugin-first onboarding (P0, user 2026-09-25)
 - **Shape:** `/join` stays the single-page, phase-driven `JoinExperience`. One branch near the start
@@ -47,14 +68,15 @@
 
 ## Local test setup
 - `open -a Docker && docker start irons-grotto-pg` (Postgres 16, user/pass/db `grotto`, port 5432,
-  volume `irons-grotto-pg`; migrations 0000–0028 applied).
+  volume `irons-grotto-pg`; migrations 0000–0029 applied).
 - `cd ~/irons-grotto-1/.claude/worktrees/plugin-api/apps/web && yarn dev` → https://localhost:3000
 - `node scripts/dev-relay.mjs` (this repo) → http://localhost:3001 for the plugin (Java won't trust
   the dev cert).
 - Plugin: `./gradlew shadowJar -PclientJar=irons-grotto-dev.jar` (never overwrite the jar a running
   client uses; check `ps aux | grep irons-grotto` first), then
   `java -ea -jar build/libs/irons-grotto-dev.jar --developer-mode`; settings → Advanced → Server
-  URL `http://localhost:3001`, Developer tools on.
+  URL `http://localhost:3001`, Developer tools on. Log in, then paste a token in the side panel
+  (one per account).
 - Worktree `.env.local` is a copy of the main one plus: `DATABASE_URL` → local, `DEV_WAIVE_JOIN_
   REQUIREMENTS=true`, `DEV_LOCAL_UPLOADS=true`, local-only `CRON_SECRET` (trigger jobs by hand,
   e.g. `/api/reconcile-points`). Redis/Discord/Temple creds are real; `DISCORD_DROPS_CHANNEL_ID`
@@ -98,7 +120,8 @@
 - No manual sync; progress once per session is enough except standing-changing events.
 - Collection log uploads stay full-list (server filters); client-side diffing only matters at
   Temple's scale.
-- One unconfirmed-token limit not worth building; per-machine tokens are fine.
+- One token per game account (server-bound on first use, stored per account in RS-profile config).
+  Tokens stay hash-only on the server; a new machine without RuneLite sync gets a new token.
 - Copy: terse, no em dashes, status only when actionable (see memory `copy-style`).
 - Check existing primitives in irons-grotto-1 before building new mechanisms.
 
@@ -112,6 +135,9 @@
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-25 (cont.): token model hardened (both repos); M7 backend groundwork (status endpoint,
+  client settings, snapshot merge fix: counters-only uploads were wiping a prospect's stored log);
+  M6.5 CI, AGENTS.md. Researched RuneLite storage (see AGENTS.md).
 - 2026-09-25: copy overhaul (both repos); plugin notable-only filter incl. snapshots; canonical
   item names (a clog sync had renamed 25 items, -694 pts); dedicated sync thread; M7 spec; dev jar
   build flag. Temple plugin studied: additive upserts with client-side diff; logout "sync" is only

@@ -6,12 +6,15 @@ website's backend in `~/irons-grotto-1/apps/web` (Next.js) over a versioned API.
 **Start every session with [`docs/ROADMAP.md`](docs/ROADMAP.md)** — current status, next step,
 local test setup and decisions. Update it at the end of every session and when an item completes.
 The plugin ↔ backend contract is [`docs/API.md`](docs/API.md); change both sides together.
+[`AGENTS.md`](AGENTS.md) holds working knowledge (RuneLite storage, game state, threads, local dev
+pitfalls); read it before touching those areas and add to it when you learn something.
 
 ## Layout
 - `src/main/java/com/ironsgrotto/`
   - `IronsGrottoPlugin` / `IronsGrottoConfig` — wiring and settings.
   - `session/` — which account is logged in; excluded world types.
-  - `api/` — `GrottoApiClient` (the only network code; `API_PREFIX`, `PLUGIN_VERSION`), DTOs.
+  - `api/` — `GrottoApiClient` (the only network code; `API_PREFIX`, `PLUGIN_VERSION`),
+    `TokenStore` (one token per game account, RS-profile config), DTOs.
   - `outbox/` — durable, batched queue for ledger events.
   - `ledger/`, `tracker/` — event ledger: chat/loot trackers, kill↔loot linking.
   - `screenshot/` — capture, disk queue, upload.
@@ -32,7 +35,8 @@ The plugin ↔ backend contract is [`docs/API.md`](docs/API.md); change both sid
 
 ## Shipping a change
 Branch (`mm/<slug>`), commit, push, open a PR against `main`. The PR body says what changed, why,
-how it was tested — and what was **not** verified.
+how it was tested — and what was **not** verified. CI (`.github/workflows/ci.yaml`) runs
+`./gradlew build` and fails a PR without a member summary.
 
 ## Announcing a change — every PR body needs a member summary
 
