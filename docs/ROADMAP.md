@@ -46,9 +46,10 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - [x] History checked for secrets before going public: only the local Docker `grotto:grotto`.
 - [ ] Production has no plugin API yet (`/api/plugin/v1/*` is 404). Ship the backend (flag off)
   before a maintainer merges the Hub PR.
-- [x] Before going public: `POST /api/update-member-list` now needs `?key=$MEMBER_LIST_SECRET`
-  (irons-grotto-1 PR #118, branch `mm/lock-member-list`, worktree `.claude/worktrees/lock-member-list`).
-  **Needs you:** set the secret in Vercel and update the Clanmate Export URL, then merge.
+- [x] Before going public: the public `POST /api/update-member-list` is gone; staff paste the
+  Clanmate Export JSON into Admin, Member list (admin sign-in). irons-grotto-1 PR #118, branch
+  `mm/lock-member-list`, worktree `.claude/worktrees/lock-member-list`. **Needs you:** try the
+  pane signed in, merge, and switch the exporter to JSON + clipboard.
 - [x] Fork `mattlm0831/plugin-hub`, branch `irons-grotto` pushed (clone at `~/plugin-hub-fork`),
   manifest at `419bf38` (hub-check passes). User: submit without waiting for the backend.
 - [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public once #118 is deployed.
