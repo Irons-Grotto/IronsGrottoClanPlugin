@@ -40,7 +40,8 @@ Envelope: `{ "success": true, "data": … }` or `{ "success": false, "error": "�
 Getting a token: with no token for the logged-in account, the panel asks
 `GET /public/registration` (below). Registered → "Get a token" opens `<Server URL>/plugin?name=<rsn>`,
 which makes a token named after the account on arrival (a name in use gets a number, "EclipseGoon
-2"; a reload replaces the unused one). Not registered, and `pluginOnboarding` → "Join Irons
+2"; a reload makes another and leaves the first working). A token that goes unused for 24 hours
+stops working (401); at 10 live tokens the oldest unused one makes room. Not registered, and `pluginOnboarding` → "Join Irons
 Grotto" opens `/join`, which makes the token. Not registered without it (the site's
 `IS_GROTTO_PLUGIN_ENABLED` is off, so `/join` has no plugin steps) → "Get a token" as above.
 
@@ -111,9 +112,12 @@ unless `includeTest`. Matches on `occurred_at`.
 
 ## `POST /api/plugin/v1/events/{id}/screenshot`
 Multipart, one `image` field (JPEG/PNG ≤ 2 MB). Event must be the caller's account (else 404).
-Idempotent: an event with a screenshot returns it unchanged. Stores to Vercel Blob (or
-`.local-uploads/`, served at `/api/dev/uploads/...`, under `DEV_LOCAL_UPLOADS`), sets `screenshot_url`, posts an embed with the image
-attached to `DISCORD_DROPS_CHANNEL_ID` (skipped when unset, and for test events).
+Posted only for a drop with server-recomputed `totalValue` ≥ `minScreenshotLootValue`, a
+`collection_log_item` or a `pet` (per `policy`), never a test event. Anything else, or any upload
+while `DISCORD_DROPS_CHANNEL_ID` is unset, is accepted and dropped: `{ screenshotUrl: null,
+announced: false }`. The image is **not stored**: it is posted as an embed with the image attached
+to the drops channel, and `screenshot_url` keeps the Discord message link. Idempotent: an event
+already posted returns its link. Discord refusing the post → 502, and the plugin retries.
 Response `data`: `{ screenshotUrl, announced }`.
 
 ## `PUT /api/plugin/v1/progress`
