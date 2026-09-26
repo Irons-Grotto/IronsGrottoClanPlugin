@@ -69,9 +69,9 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   then closes the search with script 2240. WikiSync and TempleOSRS use the same calls. **Only on the
   member's click**: the crest button `CollectionLogButton` adds right of the log's search button
   (left of the title; the right-hand row is WikiSync's and Temple's, and a third there covers the
-  title). The crest is a custom sprite (`SpriteManager.addSpriteOverrides`, id -24801). WikiSync and Temple add theirs in the same row and `deleteAllChildren` on the log's
-  setup script (7797), so ours is added after theirs (`@Subscribe(priority = -1)`), goes left of
-  whatever is already in the row, and only ever deletes widgets when all of them are ours.
+  title). The crest is a custom sprite (`SpriteManager.addSpriteOverrides`, id -24801). WikiSync
+  and Temple `deleteAllChildren` on the log's setup script (7797), so ours is added after theirs
+  (`@Subscribe(priority = -1)`) and only ever deletes widgets when all of them are ours.
   Turning Temple off runs its cleanup, which deletes every widget on the log (ours too), so
   `CollectionLogButton` checks each tick while the log is open and puts itself back.
 - Prefer `net.runelite.api.gameval.*` (`VarbitID`, `VarPlayerID`, `InterfaceID`) over the
