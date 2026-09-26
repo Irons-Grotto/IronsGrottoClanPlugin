@@ -144,7 +144,7 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - **M5 Precedence.** Plugin-owned categories (≤30 days) can be raised by Temple/WikiSync, never
   lowered (SQL `greatest`); Temple clog not fetched while plugin-owned; plugin writes don't bump
   `players.updated_at`. `/plugin` shows each category's source.
-- **M6 Consumers.** `/admin` Plugin ledger pane (search + rule tester); `lib/ledger/ledger-rules.ts`
+- **M6 Consumers.** `lib/ledger/ledger-rules.ts`
   JSON rules (`drop`, `boss_drop`, `kills`, `collection_log`, `pet`) for bingo. API versioned
   `/api/plugin/v1`, `X-Plugin-Version` required, 426 below 1.0.0. Announce-on-merge workflow.
 
@@ -152,7 +152,8 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - Two auth primitives, never both on a route: plugin routes (`/api/plugin/**`) take only the token;
   site routes only the session.
 - Two sources of truth, backend deferential to the plugin (see DATA_BOUNDARY.md).
-- The ledger is for event arbitration only, not member-facing. Members see plugin effects through
+- The ledger is for event arbitration only, read by the system: not member-facing, and no staff
+  pane (removed 2026-09-26). Members see plugin effects through
   existing feeds (recent clogs, accomplishments), which already collapse first-sync bursts on read.
 - Only notable items and pets are stored from plugin logs, anywhere (no full raw list).
 - No manual sync; progress once per session is enough except standing-changing events.

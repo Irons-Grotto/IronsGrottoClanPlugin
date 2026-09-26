@@ -10,13 +10,8 @@ Tick items as you go; anything that fails, note what you saw and I'll pick it up
 
 | Account | What it is | Used for |
 |---|---|---|
-| **A — "Irons Grotto"** | Your username/password account, already onboarded locally as an ironman member (dev waiver) | Almost everything: panel, ledger, screenshots, progress sync, staff pane |
+| **A — "Irons Grotto"** | Your username/password account, already onboarded locally as an ironman member (dev waiver) | Almost everything: panel, ledger, screenshots, progress sync |
 | **B — a Jagex account** | Logged in through the saved-session file (below). **Do not onboard it.** | The non-member path, and a real-sized collection log |
-
-Staff access for the ledger pane (local DB only):
-```sh
-docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='owner' where player_name='Irons Grotto'"
-```
 
 ## 0. Start the stack
 - [ ] `open -a Docker` → `docker start irons-grotto-pg`
@@ -96,12 +91,6 @@ One-time: `/Applications/RuneLite.app/Contents/MacOS/RuneLite --configure` → c
       ```sh
       docker exec irons-grotto-pg psql -U grotto -c "select kind, jsonb_array_length(coalesce(data->'items','[]'::jsonb)) items, captured_at from plugin_progress_snapshots order by captured_at desc"
       ```
-
-## 8. Staff ledger pane — account A as staff (SQL above)
-- [ ] `/admin` → **Plugin ledger**: search last 7 days; test rows hidden until *Test events: Show*.
-      Screenshot links open.
-- [ ] *Try an event rule*: `{ "kind": "drop", "sources": ["Chicken"] }` → account A, 1/1, with
-      a proof link. `{ "kind": "pet" }` → nobody (only test pets exist).
 
 ## 7b. M7 plugin-first onboarding — a GIM (or any non-member) account
 Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a **restarted**
