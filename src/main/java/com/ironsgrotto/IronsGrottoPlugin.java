@@ -17,10 +17,6 @@ import com.ironsgrotto.progress.CollectionLogSync;
 import com.ironsgrotto.progress.ProgressCollector;
 import com.ironsgrotto.progress.ProgressSync;
 import com.ironsgrotto.progress.ProgressUploader;
-import com.ironsgrotto.screenshot.ScreenshotPolicy;
-import com.ironsgrotto.screenshot.ScreenshotService;
-import com.ironsgrotto.screenshot.ScreenshotStore;
-import com.ironsgrotto.screenshot.ScreenshotUploader;
 import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatEventTracker;
@@ -109,8 +105,6 @@ public class IronsGrottoPlugin extends Plugin
 	private LootEventTracker lootTracker;
 
 
-	@Inject
-	private ScreenshotService screenshots;
 
 	@Inject
 	private ProgressSync progressSync;
@@ -131,7 +125,6 @@ public class IronsGrottoPlugin extends Plugin
 	private GrottoPanel panel;
 	private NavigationButton navButton;
 	private Outbox outbox;
-	private ScreenshotUploader screenshotUploader;
 	private ScheduledFuture<?> flushTask;
 	private ScheduledFuture<?> refreshTask;
 
@@ -166,16 +159,8 @@ public class IronsGrottoPlugin extends Plugin
 		OutboxStore store = new OutboxStore(dataDir.resolve("outbox.json"), gson);
 		outbox = new Outbox(this::sendEvents, store, Clock.systemUTC(), this::chat);
 
-		ScreenshotStore screenshotStore = new ScreenshotStore(dataDir.resolve("screenshots"), gson);
-		screenshots.attach(screenshotStore);
-		screenshotUploader = new ScreenshotUploader(screenshotStore, outbox, api, Clock.systemUTC());
-
 		recorder.attach(outbox, entry ->
 		{
-			if (config.screenshots() && ScreenshotPolicy.shouldCapture(entry, policy))
-			{
-				screenshots.capture(entry.getId(), entry.getAccount());
-			}
 			panel.addRecentEvent(entry);
 			panel.setPendingCount(outbox.size());
 		});
@@ -419,7 +404,7 @@ public class IronsGrottoPlugin extends Plugin
 
 		if (cause instanceof ApiException && ((ApiException) cause).isUpgradeRequired())
 		{
-			// Nothing recorded is lost: the outbox and screenshots wait for the update.
+			// Nothing recorded is lost: the outbox waits for the update.
 			panel.showError(cause.getMessage());
 		}
 		else
@@ -454,7 +439,6 @@ public class IronsGrottoPlugin extends Plugin
 		try
 		{
 			current.flush();
-			screenshotUploader.uploadPending();
 			progressUploader.flush();
 		}
 		catch (RuntimeException e)

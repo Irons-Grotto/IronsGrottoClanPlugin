@@ -61,8 +61,8 @@ member who stops using RuneLite isn't frozen.
 - **Onboarding from plugin data** — prospects' snapshots are already stored; `/join` could use them
   instead of the Temple/WikiSync scan.
 - **Temple collection-log proof link** isn't set for plugin-owned logs (it pointed at Temple's page).
-  The screenshot proof on ledger events replaces it for events; the calculator's proof link field is
-  just empty.
+  The ledger events are the evidence for clan events; the calculator's proof link field is just
+  empty.
 - **Rank-up DMs** can now be triggered by either path (plugin in production, or the refresh). There's no
   double DM: the second path's "before" already includes the rank, and announcements are remembered —
   still worth a glance in production.

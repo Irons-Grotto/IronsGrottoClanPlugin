@@ -39,18 +39,6 @@ public interface IronsGrottoConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "screenshots",
-		name = "Post to Discord",
-		description = "Screenshot valuable drops, new log slots and pets and post them in the clan drops channel. Drops are recorded either way.",
-		section = notificationsSection,
-		position = 2
-	)
-	default boolean screenshots()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "debug",
 		name = "Debug messages",
 		description = "Show every server response in chat",

@@ -8,7 +8,7 @@ of this repo. Their CI builds that commit; a maintainer reviews it and merges.
 ```
 repository=https://github.com/Irons-Grotto/IronsGrottoClanPlugin.git
 commit=<full 40-character sha of the release commit on main>
-warning=This plugin submits your IP address, RSN, account hash, levels and XP, collection log, quests, diaries, combat achievements, clue counts, loot, kill counts, pets and game screenshots to the Irons Grotto clan server, a 3rd-party server not controlled or verified by the RuneLite developers.
+warning=This plugin submits your IP address, RSN, account hash, levels and XP, collection log, quests, diaries, combat achievements, clue counts, loot, kill counts, and pets to the Irons Grotto clan server, a 3rd-party server not controlled or verified by the RuneLite developers.
 ```
 - `warning` is shown to a member before the plugin is enabled. Hub reviewers ask for it on any
   plugin that talks to a 3rd-party server

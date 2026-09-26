@@ -59,7 +59,7 @@ public class GrottoApiClientTest
 	@Test
 	public void sendsTokenAndAccountHeaders() throws Exception
 	{
-		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"rsn\":\"Iron Dude\",\"member\":null,\"joinUrl\":\"https://x/join\",\"policy\":{\"minScreenshotLootValue\":5}}}"));
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"rsn\":\"Iron Dude\",\"member\":null,\"joinUrl\":\"https://x/join\",\"policy\":{\"panelRefreshSeconds\":120}}}"));
 
 		MeResponse me = client.getMe(ACCOUNT).get();
 
@@ -71,9 +71,7 @@ public class GrottoApiClientTest
 		assertEquals("Iron Dude", request.getHeader("X-Player-Name"));
 		assertNull(me.getMember());
 		assertEquals("https://x/join", me.getJoinUrl());
-		assertEquals(5, me.getPolicy().getMinScreenshotLootValue());
-		// Fields the server left out keep the plugin's defaults.
-		assertTrue(me.getPolicy().isScreenshotPets());
+		assertEquals(120, me.getPolicy().getPanelRefreshSeconds());
 	}
 
 	@Test

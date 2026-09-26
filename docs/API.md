@@ -7,7 +7,7 @@
 - Every request sends **`X-Plugin-Version: <major.minor.patch>`** (plugin: `GrottoApiClient
   .PLUGIN_VERSION`). Missing/malformed → 400. Older than the server's `minimumPluginVersion`
   (`apps/web/config/plugin.ts`, currently **1.0.0**) → **426** `{ error, minimumVersion }`; the
-  plugin pauses its outbox/screenshots/progress (keeps the data) and tells the member to update.
+  plugin pauses its outbox/progress (keeps the data) and tells the member to update.
 - Plugin routes are **token-only**: middleware rejects `/api/plugin/**` without a bearer token and
   never reads a session there; site routes never accept tokens. Two auth primitives, never both.
   The one exception is `/api/plugin/v1/public/**`: no auth at all, public data only, rate limited
@@ -64,8 +64,7 @@ Status: 400 bad headers/body · 401 token · 403 ownership · 426 plugin too old
   "member": { "playerName", "rank", "points", "accountType", "staffRole",
               "currentRankThreshold", "nextRank", "nextRankThreshold" } | null,
   "joinUrl": "https://ironsgrotto.xyz/join" | null,
-  "policy": { "minScreenshotLootValue": 1000000, "screenshotCollectionLog": true,
-              "screenshotPets": true, "panelRefreshSeconds": 300 },
+  "policy": { "panelRefreshSeconds": 300 },
   "pluginOnboarding": true }
 ```
 `pluginOnboarding` as in `/public/registration`: with it, a linked non-member's `joinUrl` is labelled
@@ -110,15 +109,8 @@ boss, test events excluded), `delayed` (arrived > 1h after `occurredAt`), `test`
 types?, itemIds?, itemNames?, sources?, bosses?, includeTest?, limit? })`. Test events excluded
 unless `includeTest`. Matches on `occurred_at`.
 
-## `POST /api/plugin/v1/events/{id}/screenshot`
-Multipart, one `image` field (JPEG/PNG ≤ 2 MB). Event must be the caller's account (else 404).
-Posted only for a drop with server-recomputed `totalValue` ≥ `minScreenshotLootValue`, a
-`collection_log_item` or a `pet` (per `policy`), never a test event. Anything else, or any upload
-while `DISCORD_DROPS_CHANNEL_ID` is unset, is accepted and dropped: `{ screenshotUrl: null,
-announced: false }`. The image is **not stored**: it is posted as an embed with the image attached
-to the drops channel, and `screenshot_url` keeps the Discord message link. Idempotent: an event
-already posted returns its link. Discord refusing the post → 502, and the plugin retries.
-Response `data`: `{ screenshotUrl, announced }`.
+Screenshots: none. The upload route and the drops-channel post were removed (2026-09-26); they
+come back as part of bingo support.
 
 ## `PUT /api/plugin/v1/progress`
 Any subset of (schema: `apps/web/app/schemas/plugin-progress.ts`):
