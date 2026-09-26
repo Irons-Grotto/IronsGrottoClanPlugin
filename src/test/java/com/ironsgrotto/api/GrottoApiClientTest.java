@@ -3,6 +3,7 @@ package com.ironsgrotto.api;
 import com.google.gson.Gson;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.session.AccountIdentity;
 import java.util.concurrent.ExecutionException;
 import okhttp3.OkHttpClient;
@@ -58,7 +59,7 @@ public class GrottoApiClientTest
 	@Test
 	public void sendsTokenAndAccountHeaders() throws Exception
 	{
-		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"rsn\":\"Iron Dude\",\"member\":null,\"joinUrl\":\"https://x/join\",\"policy\":{\"minScreenshotLootValue\":5}}}"));
+		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"rsn\":\"Iron Dude\",\"member\":null,\"joinUrl\":\"https://x/join\",\"policy\":{\"panelRefreshSeconds\":120}}}"));
 
 		MeResponse me = client.getMe(ACCOUNT).get();
 
@@ -70,9 +71,7 @@ public class GrottoApiClientTest
 		assertEquals("Iron Dude", request.getHeader("X-Player-Name"));
 		assertNull(me.getMember());
 		assertEquals("https://x/join", me.getJoinUrl());
-		assertEquals(5, me.getPolicy().getMinScreenshotLootValue());
-		// Fields the server left out keep the plugin's defaults.
-		assertTrue(me.getPolicy().isScreenshotPets());
+		assertEquals(120, me.getPolicy().getPanelRefreshSeconds());
 	}
 
 	@Test
@@ -231,7 +230,7 @@ public class GrottoApiClientTest
 		tokens.set(ACCOUNT, "igp_secret");
 		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":true}}"));
 
-		assertTrue(client.checkRegistration("Iron Dude").get());
+		assertTrue(client.checkRegistration("Iron Dude").get().isRegistered());
 
 		RecordedRequest request = server.takeRequest();
 		assertEquals("/api/plugin/v1/public/registration?rsn=Iron%20Dude", request.getPath());
@@ -245,7 +244,28 @@ public class GrottoApiClientTest
 	{
 		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":false}}"));
 
-		assertFalse(client.checkRegistration("Nobody Here").get());
+		Registration registration = client.checkRegistration("Nobody Here").get();
+		assertFalse(registration.isRegistered());
+		// A server without the field always made the token on /join.
+		assertTrue(registration.sendsToJoin());
+	}
+
+	@Test
+	public void sendsANewAccountToTheTokenPageWhileJoiningCantMakeOne() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody(
+			"{\"success\":true,\"data\":{\"registered\":false,\"pluginOnboarding\":false}}"));
+
+		assertFalse(client.checkRegistration("Nobody Here").get().sendsToJoin());
+	}
+
+	@Test
+	public void sendsARegisteredAccountToTheTokenPage() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody(
+			"{\"success\":true,\"data\":{\"registered\":true,\"pluginOnboarding\":true}}"));
+
+		assertFalse(client.checkRegistration("Iron Dude").get().sendsToJoin());
 	}
 
 	@Test

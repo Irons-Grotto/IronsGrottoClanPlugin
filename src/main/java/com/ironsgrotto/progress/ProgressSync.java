@@ -2,6 +2,7 @@ package com.ironsgrotto.progress;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatMessageParser;
@@ -42,6 +43,8 @@ import net.runelite.client.util.Text;
  *   whole item list (see {@link CollectionLogSync}).
  * - **Client settings** tracking depends on — on login and whenever the
  *   member changes one, so onboarding sees the fix straight away.
+ * - **Game mode** — with the login reading, and the moment it changes (a
+ *   hardcore dies, an ironman de-irons).
  *
  * Nothing unchanged is ever re-sent: the uploader skips a category identical
  * to its last upload. Test events from the developer tools never touch
@@ -144,6 +147,10 @@ public class ProgressSync
 		{
 			submitSettings();
 		}
+		else if (event.getVarbitId() == VarbitID.IRONMAN)
+		{
+			submitAccountType();
+		}
 	}
 
 	@Subscribe
@@ -163,6 +170,17 @@ public class ProgressSync
 		if (current != null && current.equals(account) && ticksLoggedIn >= FIRST_READ_TICK)
 		{
 			uploader.submit(current, "settings", collector.settings());
+		}
+	}
+
+	/** Sends a changed game mode; only once the login reading has been taken. */
+	private void submitAccountType()
+	{
+		AccountIdentity current = session.getIdentity();
+		String accountType = collector.accountType();
+		if (current != null && current.equals(account) && ticksLoggedIn >= FIRST_READ_TICK && accountType != null)
+		{
+			uploader.submit(current, "accountType", new JsonPrimitive(accountType));
 		}
 	}
 
@@ -285,6 +303,11 @@ public class ProgressSync
 		if (counts != null)
 		{
 			reading.add("collectionLog", counts);
+		}
+		String accountType = collector.accountType();
+		if (accountType != null)
+		{
+			reading.addProperty("accountType", accountType);
 		}
 		return reading;
 	}

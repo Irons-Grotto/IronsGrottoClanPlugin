@@ -53,6 +53,8 @@ public class GrottoPanel extends PluginPanel
 	private static final NumberFormat NUMBERS = NumberFormat.getIntegerInstance();
 
 	private final JLabel statusLabel = new JLabel();
+	private final JLabel lootTrackerLabel = wrapped(
+		"Turn on RuneLite's Loot Tracker plugin. Raid, clue and chest loot is only recorded with it on.");
 	private final JPanel accountSection = section();
 	private final JPanel eventSection = section();
 	private final JPanel activitySection = section();
@@ -101,6 +103,11 @@ public class GrottoPanel extends PluginPanel
 		content.add(statusLabel);
 		content.add(Box.createVerticalStrut(8));
 
+		lootTrackerLabel.setForeground(ColorScheme.PROGRESS_ERROR_COLOR);
+		lootTrackerLabel.setBorder(new EmptyBorder(0, 0, 8, 0));
+		lootTrackerLabel.setVisible(false);
+		content.add(lootTrackerLabel);
+
 		content.add(accountSection);
 		content.add(Box.createVerticalStrut(8));
 		content.add(eventSection);
@@ -130,6 +137,16 @@ public class GrottoPanel extends PluginPanel
 		});
 	}
 
+	/** Warns while RuneLite's Loot Tracker is off: chest and activity loot only arrives through it. */
+	public void showLootTrackerOff(boolean off)
+	{
+		onEdt(() ->
+		{
+			lootTrackerLabel.setVisible(off);
+			revalidateAll();
+		});
+	}
+
 	/** Called with a token the member pasted into the panel. */
 	public void setOnTokenEntered(Consumer<String> onTokenEntered)
 	{
@@ -150,7 +167,7 @@ public class GrottoPanel extends PluginPanel
 			accountSection.removeAll();
 			accountSection.add(heading("Connect " + rsn));
 			tokenPromptRsn = rsn;
-			fillTokenHelp(rsn, true);
+			fillTokenHelp(rsn, false);
 			accountSection.add(tokenIntro);
 			accountSection.add(Box.createVerticalStrut(6));
 
@@ -200,35 +217,35 @@ public class GrottoPanel extends PluginPanel
 	}
 
 	/**
-	 * Points the token prompt at the right place once the server says whether
-	 * the account is on the site: a registered account gets a token straight
-	 * from {@code /plugin}; a new one joins, and {@code /join} makes its token.
+	 * Points the token prompt at the right place once the server has said
+	 * where this account gets its token: a new account joins first when
+	 * {@code /join} makes the token; otherwise {@code /plugin} makes one.
 	 */
-	public void showTokenSource(String rsn, boolean registered)
+	public void showTokenSource(String rsn, boolean sendToJoin)
 	{
 		onEdt(() ->
 		{
 			if (rsn.equals(tokenPromptRsn))
 			{
-				fillTokenHelp(rsn, registered);
+				fillTokenHelp(rsn, sendToJoin);
 				revalidateAll();
 			}
 		});
 	}
 
-	private void fillTokenHelp(String rsn, boolean registered)
+	private void fillTokenHelp(String rsn, boolean sendToJoin)
 	{
 		tokenIntro.removeAll();
 		tokenLink.removeAll();
-		if (registered)
-		{
-			tokenIntro.add(wrapped("Get a token for this account and paste it here."));
-			tokenLink.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
-		}
-		else
+		if (sendToJoin)
 		{
 			tokenIntro.add(wrapped(rsn + " isn't in Irons Grotto yet. Join to get a token, then paste it here."));
 			tokenLink.add(linkButton("Join Irons Grotto", joinUrl));
+		}
+		else
+		{
+			tokenIntro.add(wrapped("Get a token for this account and paste it here."));
+			tokenLink.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
 		}
 	}
 
@@ -277,9 +294,10 @@ public class GrottoPanel extends PluginPanel
 				if (me.getJoinUrl() != null)
 				{
 					accountSection.add(Box.createVerticalStrut(6));
-					// Linked but not joined yet: they're partway through /join, so
-					// this takes them back to it rather than starting over.
-					accountSection.add(linkButton("Continue", me.getJoinUrl()));
+					// Linked but not joined yet. With the plugin steps on /join
+					// they're partway through it; without, it's a plain sign-up.
+					boolean partway = !Boolean.FALSE.equals(me.getPluginOnboarding());
+					accountSection.add(linkButton(partway ? "Continue" : "Join Irons Grotto", me.getJoinUrl()));
 				}
 			}
 			else

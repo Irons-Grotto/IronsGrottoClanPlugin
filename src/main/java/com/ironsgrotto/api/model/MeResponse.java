@@ -15,4 +15,10 @@ public class MeResponse
 	@Nullable
 	private String joinUrl;
 	private PluginPolicy policy = new PluginPolicy();
+	/**
+	 * Whether {@code /join} has the plugin steps. Null from a server older
+	 * than the field, which always had them.
+	 */
+	@Nullable
+	private Boolean pluginOnboarding;
 }

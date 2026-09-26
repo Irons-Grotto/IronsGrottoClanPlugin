@@ -10,13 +10,8 @@ Tick items as you go; anything that fails, note what you saw and I'll pick it up
 
 | Account | What it is | Used for |
 |---|---|---|
-| **A — "Irons Grotto"** | Your username/password account, already onboarded locally as an ironman member (dev waiver) | Almost everything: panel, ledger, screenshots, progress sync, staff pane |
+| **A — "Irons Grotto"** | Your username/password account, already onboarded locally as an ironman member (dev waiver) | Almost everything: panel, ledger, progress sync |
 | **B — a Jagex account** | Logged in through the saved-session file (below). **Do not onboard it.** | The non-member path, and a real-sized collection log |
-
-Staff access for the ledger pane (local DB only):
-```sh
-docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='owner' where player_name='Irons Grotto'"
-```
 
 ## 0. Start the stack
 - [ ] `open -a Docker` → `docker start irons-grotto-pg`
@@ -27,7 +22,7 @@ docker exec irons-grotto-pg psql -U grotto -c "update players set staff_role='ow
 
 Handy query (latest ledger rows):
 ```sh
-docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name, rsn) who, left(payload::text,80) payload, flags, screenshot_url is not null shot from plugin_ledger_events order by received_at desc limit 10"
+docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name, rsn) who, left(payload::text,80) payload, flags from plugin_ledger_events order by received_at desc limit 10"
 ```
 
 ## 1. Onboarding & linking — website
@@ -55,16 +50,13 @@ docker exec irons-grotto-pg psql -U grotto -c "select type, coalesce(player_name
 Developer tools are gone; use real events (section 4) on a throwaway account.
 
 ## 4. A real event — account A
-Real play is what the rule tester counts (test events never count). Lower the screenshot threshold
-so a cheap drop qualifies: in `apps/web/config/plugin.ts` set `minScreenshotLootValue: 0`, save,
-log out and back in so the plugin picks it up. **Put it back to 1_000_000 afterwards.**
+Real play is what event rules count (test events never count). To see the chat confirmation for a
+cheap drop, set `notableLootValue` to 0 in `apps/web/config/plugin.ts`. **Put it back to 1_000_000
+afterwards.**
 - [ ] *(Needs a new slot)* get any collection log item you don't have → the slot is in
       `player_acquired_items` within seconds, without opening the log, and the panel's points refresh.
 - [ ] Kill anything that drops loot (a chicken is fine). Row `loot` with no `test` flag,
       `sourceType: NPC`, GE prices, and a chat "Drop recorded: …".
-- [ ] That row gets `screenshot_url` within ~10s; the URL opens in the browser and shows the kill.
-- [ ] *(Optional, Discord)* set `DISCORD_DROPS_CHANNEL_ID` in the worktree `.env.local` to a
-      **private test channel**, kill again → an embed with the screenshot is posted there. Unset it after.
 
 ## 5. Nothing is lost offline — account A
 - [ ] Stop the relay (Ctrl-C). Click Drop, Pet → panel footer says "N events waiting to send".
@@ -96,12 +88,6 @@ One-time: `/Applications/RuneLite.app/Contents/MacOS/RuneLite --configure` → c
       ```sh
       docker exec irons-grotto-pg psql -U grotto -c "select kind, jsonb_array_length(coalesce(data->'items','[]'::jsonb)) items, captured_at from plugin_progress_snapshots order by captured_at desc"
       ```
-
-## 8. Staff ledger pane — account A as staff (SQL above)
-- [ ] `/admin` → **Plugin ledger**: search last 7 days; test rows hidden until *Test events: Show*.
-      Screenshot links open.
-- [ ] *Try an event rule*: `{ "kind": "drop", "sources": ["Chicken"] }` → account A, 1/1, with
-      a proof link. `{ "kind": "pet" }` → nobody (only test pets exist).
 
 ## 7b. M7 plugin-first onboarding — a GIM (or any non-member) account
 Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a **restarted**
@@ -138,8 +124,8 @@ Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a *
 2. **Push + PRs** — both repos are on local branch `mm/plugin-foundations`, unpushed. Backend PR
    body needs a member-summary; suggested:
    > You can now link the new Irons Grotto RuneLite plugin to your account — it keeps your rank up to date straight from the game and records drops for clan events, so no more screenshots as proof.
-3. **Production config** — deploy runs migrations 0026–0028; set `DISCORD_DROPS_CHANNEL_ID` on
-   the host (and leave `DEV_*` unset — they are ignored outside `next dev` regardless).
+3. **Production config**: run migrations 0026–0030 (`yarn db:migrate`; the deploy doesn't), and
+   leave `DEV_*` unset (they are ignored outside `next dev` regardless).
 4. **Plugin repo secret** `DISCORD_RELEASE_WEBHOOK` for the "Irons Grotto Plugin Update" announcer.
 5. **Plugin Hub submission** — see `docs/PLUGIN_HUB.md`. Needs the backend in production, this
    repo public, and a fork of `runelite/plugin-hub`. The collection log read is the member's click, as WikiSync's is.

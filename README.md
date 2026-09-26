@@ -6,14 +6,13 @@ The Irons Grotto clan plugin.
 - The current SOTW or BOTW and its top 5.
 - Drops, kill counts, new collection log slots and pets are recorded automatically, so clan
   events are verified without screenshots.
-- Valuable drops, new log slots and pets are screenshotted for the clan drops channel.
 - Your levels, collection log, combat achievements, diaries, quests and clue counts keep your rank
   up to date.
 
 This plugin sends data about your account to the Irons Grotto server (ironsgrotto.xyz).
 
 ## Setup
-1. Log in to the game.
+1. Install **Irons Grotto Clan** from the Plugin Hub and log in to the game.
 2. Get a token at <https://ironsgrotto.xyz/plugin>. New members get one on the first step of
    <https://ironsgrotto.xyz/join>.
 3. Paste it into the Irons Grotto side panel.

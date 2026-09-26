@@ -39,18 +39,6 @@ public interface IronsGrottoConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "screenshots",
-		name = "Screenshots",
-		description = "Screenshot valuable drops, new log slots and pets for the clan drops channel",
-		section = notificationsSection,
-		position = 2
-	)
-	default boolean screenshots()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "debug",
 		name = "Debug messages",
 		description = "Show every server response in chat",

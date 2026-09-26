@@ -6,8 +6,5 @@ import lombok.Data;
 @Data
 public class PluginPolicy
 {
-	private long minScreenshotLootValue = 1_000_000;
-	private boolean screenshotCollectionLog = true;
-	private boolean screenshotPets = true;
 	private int panelRefreshSeconds = 300;
 }

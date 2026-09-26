@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * The plugin's own background thread, for everything that talks to the
- * server or encodes a screenshot.
+ * server.
  *
  * ⚠️ Not RuneLite's injected {@code ScheduledExecutorService}: that is one
  * thread shared by every plugin, and this plugin makes blocking HTTP calls

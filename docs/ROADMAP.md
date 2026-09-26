@@ -5,6 +5,16 @@
 > [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md) (who owns what data), [`API.md`](API.md) (contract),
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
+## Status (session 2026-09-26)
+- **Release readiness (2026-09-26):** backend PR **irons-grotto-1 #119** (`mm/plugin-foundations`,
+  pushed, main merged in). Flag gaps closed: plugin sign-up refused with the flag off;
+  registration and `/me` report `pluginOnboarding` so the panel sends new accounts to `/plugin`
+  while `/join` can't make a token; flag declared in `turbo.json` build `env`. Game mode read from
+  the ironman varbit (`accountType` on `PUT /progress`), overwrites the member's type, plugin-owned
+  for 30 days. Panel warns while Loot Tracker is off. Screenshots removed entirely (both repos,
+  migration 0030 drops `screenshot_url`); they return as a bingo-only feature. Plugin branch `mm/release-readiness`.
+  **Prod migrations 0026–0030 applied 2026-09-26** (Neon; 31 total). Deploy #119 with the flag off.
+
 ## Status (session 2026-09-25, continued)
 - **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 done** (plugin repo
   on GitHub, `main` pushed, CI green). **M7 built**, behind `IS_GROTTO_PLUGIN_ENABLED`, not yet
@@ -124,8 +134,8 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - **M2 Ledger.** `plugin_ledger_events` (append-only, client UUIDs, flags `kc_not_increasing`/
   `delayed`/`test`). Plugin trackers: loot (NPC/PvP + Loot Tracker events), kc / clog slot / pet
   from chat, kill↔loot linking. Dev tools spawn test events through the real hooks.
-- **M3 Screenshots.** Next-frame JPEG, disk queue, upload after event delivery; stored in Blob (or
-  `.local-uploads` in dev); Discord embed to the drops channel (never for tests).
+- **M3 Screenshots.** Removed 2026-09-26 (plugin, route, `screenshot_url`, migration 0030). To come
+  back as a bingo-only feature when the plugin supports bingo.
 - **M4 Account progress.** Plugin reads skills, diaries, CA points/tier, quests, clog counters,
   full clog (search-toggle trick), clue counts, new slot via `COLLECTION_OVERVIEW_LAST_ITEM0`.
   Syncs on login (tick 8), logout, client close, new log slot, pet. No buttons. Server merges
@@ -134,7 +144,7 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - **M5 Precedence.** Plugin-owned categories (≤30 days) can be raised by Temple/WikiSync, never
   lowered (SQL `greatest`); Temple clog not fetched while plugin-owned; plugin writes don't bump
   `players.updated_at`. `/plugin` shows each category's source.
-- **M6 Consumers.** `/admin` Plugin ledger pane (search + rule tester); `lib/ledger/ledger-rules.ts`
+- **M6 Consumers.** `lib/ledger/ledger-rules.ts`
   JSON rules (`drop`, `boss_drop`, `kills`, `collection_log`, `pet`) for bingo. API versioned
   `/api/plugin/v1`, `X-Plugin-Version` required, 426 below 1.0.0. Announce-on-merge workflow.
 
@@ -142,9 +152,12 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - Two auth primitives, never both on a route: plugin routes (`/api/plugin/**`) take only the token;
   site routes only the session.
 - Two sources of truth, backend deferential to the plugin (see DATA_BOUNDARY.md).
-- The ledger is for event arbitration only, not member-facing. Members see plugin effects through
+- The ledger is for event arbitration only, read by the system: not member-facing, and no staff
+  pane (removed 2026-09-26). Members see plugin effects through
   existing feeds (recent clogs, accomplishments), which already collapse first-sync bursts on read.
 - Only notable items and pets are stored from plugin logs, anywhere (no full raw list).
+- No screenshots until bingo: they're a bingo-only construct, designed when the plugin supports
+  bingo (user 2026-09-26).
 - No manual sync; progress once per session is enough except standing-changing events.
 - Collection log uploads stay full-list (server filters); client-side diffing only matters at
   Temple's scale.
@@ -161,6 +174,13 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-26 (later): screenshots removed from both repos (user: dubious value, lots of
+  complexity); they return as a bingo-only feature. Admin ledger pane removed (system reads only).
+- 2026-09-26: release review. Validated the onboarding flag (scoped to `/join` plugin branch, menu,
+  plugin-status; plugin API and `/plugin` unflagged on purpose); closed the ungated sign-up action
+  and the plugin's "Join" copy with the flag off; turbo strict-env would have stripped the flag.
+  Added game mode from the game, Loot Tracker warning, clearer screenshot setting. Opened
+  irons-grotto-1 #119. Not seen in game yet.
 - 2026-09-25 (night): Plugin Hub prep (M8). `build=standard`, `docs/PLUGIN_HUB.md` (manifest
   with the data warning a Hub reviewer asked another clan plugin for), `scripts/hub-check.sh`
   (runs the Hub packager locally; passes). Locked the member list export (irons-grotto-1 #118)

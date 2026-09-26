@@ -17,7 +17,6 @@ pitfalls); read it before touching those areas and add to it when you learn some
     `TokenStore` (one token per game account, RS-profile config), DTOs.
   - `outbox/` — durable, batched queue for ledger events.
   - `ledger/`, `tracker/` — event ledger: chat/loot trackers, kill↔loot linking.
-  - `screenshot/` — capture, disk queue, upload.
   - `progress/` — account progress sync (skills, clog, CAs, diaries, quests, clues).
   - `ui/` — side panel.
 - Game ids the plugin reads without a RuneLite name live in `progress/GameIds.java`.
@@ -46,7 +45,7 @@ write that note — it greps the PR body for this block and posts what it finds 
 
 ```markdown
 <!-- member-summary:start -->
-Your drops over 1M are now screenshotted and shared in the clan drops channel automatically.
+Boss drops are now recorded together with the kill count they came from.
 <!-- member-summary:end -->
 ```
 

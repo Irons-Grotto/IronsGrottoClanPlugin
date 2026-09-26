@@ -47,7 +47,8 @@ public class ProgressCollector
 		return settings;
 	}
 
-	private boolean isLootTrackerEnabled()
+	/** Whether RuneLite's Loot Tracker plugin is on. Any thread. */
+	public boolean isLootTrackerEnabled()
 	{
 		for (Plugin plugin : pluginManager.getPlugins())
 		{
@@ -57,6 +58,12 @@ public class ProgressCollector
 			}
 		}
 		return false;
+	}
+
+	/** The game mode, as the server names it; null for a value it doesn't know. */
+	public String accountType()
+	{
+		return ProgressRules.accountType(client.getVarbitValue(VarbitID.IRONMAN));
 	}
 
 	@SuppressWarnings("deprecation")

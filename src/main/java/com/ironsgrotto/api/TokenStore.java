@@ -21,7 +21,7 @@ import net.runelite.client.config.RuneScapeProfileType;
  * to a RuneLite account, so the token follows the account.
  *
  * Tokens are looked up by account hash, not "the current account", because
- * queued events and screenshots are sent after logout or an account switch,
+ * queued events are sent after logout or an account switch,
  * as the account that produced them.
  */
 @Singleton

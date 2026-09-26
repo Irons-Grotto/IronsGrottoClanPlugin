@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.session.AccountIdentity;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -19,7 +20,6 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
-import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -39,7 +39,6 @@ import okhttp3.ResponseBody;
 public class GrottoApiClient
 {
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-	private static final MediaType JPEG = MediaType.parse("image/jpeg");
 	/**
 	 * The API contract this release speaks. v1 routes only ever change in
 	 * backward-compatible ways; a breaking change is a new version beside it.
@@ -92,9 +91,9 @@ public class GrottoApiClient
 	 * Whether a name is on the site at all. Public: no token and no account
 	 * headers, so it works before the member has a token.
 	 */
-	public CompletableFuture<Boolean> checkRegistration(String rsn)
+	public CompletableFuture<Registration> checkRegistration(String rsn)
 	{
-		CompletableFuture<Boolean> future = new CompletableFuture<>();
+		CompletableFuture<Registration> future = new CompletableFuture<>();
 		HttpUrl base = HttpUrl.parse(config.apiBaseUrl());
 		if (base == null)
 		{
@@ -126,7 +125,7 @@ public class GrottoApiClient
 				try (response)
 				{
 					Registration registration = parse(response, null, Registration.class, false);
-					future.complete(registration != null && registration.registered);
+					future.complete(registration != null ? registration : new Registration());
 				}
 				catch (ApiException e)
 				{
@@ -138,11 +137,6 @@ public class GrottoApiClient
 		return future;
 	}
 
-	/** {@code GET /public/registration}'s data. */
-	private static class Registration
-	{
-		boolean registered;
-	}
 
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
 	{
@@ -180,28 +174,6 @@ public class GrottoApiClient
 		try (Response response = http.newCall(request).execute())
 		{
 			return parse(response, identity, JsonObject.class);
-		}
-		catch (IOException e)
-		{
-			throw unreachable(request.url(), e);
-		}
-	}
-
-	/** Attaches a JPEG to a delivered ledger event. Blocking; background threads only. */
-	public void uploadScreenshot(AccountIdentity identity, String eventId, byte[] jpeg) throws ApiException
-	{
-		RequestBody body = new MultipartBody.Builder()
-			.setType(MultipartBody.FORM)
-			.addFormDataPart("image", eventId + ".jpg", RequestBody.create(JPEG, jpeg))
-			.build();
-
-		Request request = requestBuilder(API_PREFIX + "/events/" + eventId + "/screenshot", identity)
-			.post(body)
-			.build();
-
-		try (Response response = http.newCall(request).execute())
-		{
-			parse(response, identity, Object.class);
 		}
 		catch (IOException e)
 		{
