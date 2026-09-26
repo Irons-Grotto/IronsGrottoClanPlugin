@@ -5,6 +5,16 @@
 > [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md) (who owns what data), [`API.md`](API.md) (contract),
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
+## Status (session 2026-09-26)
+- **Release readiness (2026-09-26):** backend PR **irons-grotto-1 #119** (`mm/plugin-foundations`,
+  pushed, main merged in). Flag gaps closed: plugin sign-up refused with the flag off;
+  registration and `/me` report `pluginOnboarding` so the panel sends new accounts to `/plugin`
+  while `/join` can't make a token; flag declared in `turbo.json` build `env`. Game mode read from
+  the ironman varbit (`accountType` on `PUT /progress`), overwrites the member's type, plugin-owned
+  for 30 days. Panel warns while Loot Tracker is off. "Screenshots" setting renamed "Post to
+  Discord" (drops are recorded either way). Plugin branch `mm/release-readiness`.
+  **Before deploy:** migrations 0026–0029 on prod, `DISCORD_DROPS_CHANNEL_ID`.
+
 ## Status (session 2026-09-25, continued)
 - **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 done** (plugin repo
   on GitHub, `main` pushed, CI green). **M7 built**, behind `IS_GROTTO_PLUGIN_ENABLED`, not yet
@@ -161,6 +171,11 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-26: release review. Validated the onboarding flag (scoped to `/join` plugin branch, menu,
+  plugin-status; plugin API and `/plugin` unflagged on purpose); closed the ungated sign-up action
+  and the plugin's "Join" copy with the flag off; turbo strict-env would have stripped the flag.
+  Added game mode from the game, Loot Tracker warning, clearer screenshot setting. Opened
+  irons-grotto-1 #119. Not seen in game yet.
 - 2026-09-25 (night): Plugin Hub prep (M8). `build=standard`, `docs/PLUGIN_HUB.md` (manifest
   with the data warning a Hub reviewer asked another clan plugin for), `scripts/hub-check.sh`
   (runs the Hub packager locally; passes). Locked the member list export (irons-grotto-1 #118)

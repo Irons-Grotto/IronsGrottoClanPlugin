@@ -40,14 +40,17 @@ Envelope: `{ "success": true, "data": … }` or `{ "success": false, "error": "�
 Getting a token: with no token for the logged-in account, the panel asks
 `GET /public/registration` (below). Registered → "Get a token" opens `<Server URL>/plugin?name=<rsn>`,
 which makes a token named after the account on arrival (a name in use gets a number, "EclipseGoon
-2"; a reload replaces the unused one). Not registered → "Join Irons Grotto" opens `/join`, which
-makes the token.
+2"; a reload replaces the unused one). Not registered, and `pluginOnboarding` → "Join Irons
+Grotto" opens `/join`, which makes the token. Not registered without it (the site's
+`IS_GROTTO_PLUGIN_ENABLED` is off, so `/join` has no plugin steps) → "Get a token" as above.
 
 ## `GET /api/plugin/v1/public/registration?rsn=<name>`
 **Public**: no token, no account headers; `X-Plugin-Version` still required (400/426 as above).
-30 requests/min per address (429 + `Retry-After`). Response `data`: `{ "registered": boolean }`,
-true when a `players` row has that name (case-insensitive, active or not). Nothing else is
-returned.
+30 requests/min per address (429 + `Retry-After`). Response `data`:
+`{ "registered": boolean, "pluginOnboarding": boolean }`. `registered` is true when a `players` row
+has that name (case-insensitive, active or not). `pluginOnboarding` is the site's
+`IS_GROTTO_PLUGIN_ENABLED`: whether `/join` has the plugin steps and makes a token. Missing (older
+server) reads as true.
 
 Plugin storage: tokens live per game account in RuneLite's RS-profile config (`TokenStore`),
 looked up by account hash, so a token is never sent for another account (e.g. a friend on the same
@@ -61,8 +64,11 @@ Status: 400 bad headers/body · 401 token · 403 ownership · 426 plugin too old
               "currentRankThreshold", "nextRank", "nextRankThreshold" } | null,
   "joinUrl": "https://ironsgrotto.xyz/join" | null,
   "policy": { "minScreenshotLootValue": 1000000, "screenshotCollectionLog": true,
-              "screenshotPets": true, "panelRefreshSeconds": 300 } }
+              "screenshotPets": true, "panelRefreshSeconds": 300 },
+  "pluginOnboarding": true }
 ```
+`pluginOnboarding` as in `/public/registration`: with it, a linked non-member's `joinUrl` is labelled
+"Continue" (they're partway through the plugin steps); without, "Join Irons Grotto".
 Policy source: `apps/web/config/plugin.ts`.
 
 ## `GET /api/plugin/v1/clan-events`
@@ -119,8 +125,15 @@ Any subset of (schema: `apps/web/app/schemas/plugin-progress.ts`):
   "diaries": { "Ardougne": "None|Easy|Medium|Hard|Elite", … },
   "quests": { "questPoints", "completed": ["Cook's Assistant", …] },
   "clues": { "Hard": 12 },
-  "settings": { "collectionLogChat": true, "lootTracker": true } }
+  "settings": { "collectionLogChat": true, "lootTracker": true },
+  "accountType": "main|ironman|ultimate_ironman|hardcore_ironman|group_ironman|hardcore_group_ironman|unranked_group_ironman" }
 ```
+`accountType` is the game mode from the game's ironman varbit (1777), sent with the login reading
+and when it changes. Stored as the `account_type` snapshot. For a member it overwrites
+`players.account_type` (not upwards-only: a hardcore dies, an ironman de-irons; a group name is kept
+while the mode stays a group mode) and is marked source `plugin` under `account_type`, so the
+Temple refresh leaves it alone for 30 days. On the plugin branch of `/join` it settles the game mode
+without asking the member.
 `settings` is not progress: the client settings tracking depends on (the game's new collection log
 item chat message; RuneLite's Loot Tracker plugin). Stored as the account's `settings` snapshot for
 onboarding, never applied. Partial kinds are merged into the stored snapshot: a counters-only
@@ -128,5 +141,5 @@ onboarding, never applied. Partial kinds are merged into the stored snapshot: a 
 `clues` tiers merge.
 Always stored as the account's latest snapshot. Members: merged upwards-only into the ranking
 record, rescored, category marked source `plugin`. Response `data`:
-`{ member, applied: [categories], points, rank }`.
+`{ member, applied: [categories, plus "account_type" when the mode changed], points, rank }`.
 Plugin-owned categories (synced ≤ 30 days) are not overwritten by the Temple/WikiSync refresh.

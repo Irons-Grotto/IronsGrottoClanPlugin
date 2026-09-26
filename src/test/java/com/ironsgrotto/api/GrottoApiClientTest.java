@@ -3,6 +3,7 @@ package com.ironsgrotto.api;
 import com.google.gson.Gson;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.session.AccountIdentity;
 import java.util.concurrent.ExecutionException;
 import okhttp3.OkHttpClient;
@@ -231,7 +232,7 @@ public class GrottoApiClientTest
 		tokens.set(ACCOUNT, "igp_secret");
 		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":true}}"));
 
-		assertTrue(client.checkRegistration("Iron Dude").get());
+		assertTrue(client.checkRegistration("Iron Dude").get().isRegistered());
 
 		RecordedRequest request = server.takeRequest();
 		assertEquals("/api/plugin/v1/public/registration?rsn=Iron%20Dude", request.getPath());
@@ -245,7 +246,28 @@ public class GrottoApiClientTest
 	{
 		server.enqueue(new MockResponse().setBody("{\"success\":true,\"data\":{\"registered\":false}}"));
 
-		assertFalse(client.checkRegistration("Nobody Here").get());
+		Registration registration = client.checkRegistration("Nobody Here").get();
+		assertFalse(registration.isRegistered());
+		// A server without the field always made the token on /join.
+		assertTrue(registration.sendsToJoin());
+	}
+
+	@Test
+	public void sendsANewAccountToTheTokenPageWhileJoiningCantMakeOne() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody(
+			"{\"success\":true,\"data\":{\"registered\":false,\"pluginOnboarding\":false}}"));
+
+		assertFalse(client.checkRegistration("Nobody Here").get().sendsToJoin());
+	}
+
+	@Test
+	public void sendsARegisteredAccountToTheTokenPage() throws Exception
+	{
+		server.enqueue(new MockResponse().setBody(
+			"{\"success\":true,\"data\":{\"registered\":true,\"pluginOnboarding\":true}}"));
+
+		assertFalse(client.checkRegistration("Iron Dude").get().sendsToJoin());
 	}
 
 	@Test

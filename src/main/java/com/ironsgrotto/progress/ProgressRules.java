@@ -7,6 +7,23 @@ public final class ProgressRules
 	{
 	}
 
+	/** The ironman varbit's values, in order, as the server names them. */
+	private static final String[] ACCOUNT_TYPES = {
+		"main",
+		"ironman",
+		"ultimate_ironman",
+		"hardcore_ironman",
+		"group_ironman",
+		"hardcore_group_ironman",
+		"unranked_group_ironman",
+	};
+
+	/** The game mode for the ironman varbit's value, or null for one the game has added since. */
+	public static String accountType(int varbitValue)
+	{
+		return varbitValue >= 0 && varbitValue < ACCOUNT_TYPES.length ? ACCOUNT_TYPES[varbitValue] : null;
+	}
+
 	/** Highest diary tier whose completion varbit is set, or "None". */
 	public static String diaryTier(int[] completionValues)
 	{

@@ -11,6 +11,7 @@ import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ProgressTest
@@ -64,6 +65,19 @@ public class ProgressTest
 		JsonObject skills = new JsonObject();
 		skills.addProperty("totalLevel", total);
 		return skills;
+	}
+
+	@Test
+	public void accountTypeFollowsTheIronmanVarbit()
+	{
+		assertEquals("main", ProgressRules.accountType(0));
+		assertEquals("ironman", ProgressRules.accountType(1));
+		assertEquals("ultimate_ironman", ProgressRules.accountType(2));
+		assertEquals("hardcore_ironman", ProgressRules.accountType(3));
+		assertEquals("group_ironman", ProgressRules.accountType(4));
+		assertEquals("hardcore_group_ironman", ProgressRules.accountType(5));
+		assertEquals("unranked_group_ironman", ProgressRules.accountType(6));
+		assertNull(ProgressRules.accountType(7));
 	}
 
 	@Test

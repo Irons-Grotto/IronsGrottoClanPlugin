@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.session.AccountIdentity;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -92,9 +93,9 @@ public class GrottoApiClient
 	 * Whether a name is on the site at all. Public: no token and no account
 	 * headers, so it works before the member has a token.
 	 */
-	public CompletableFuture<Boolean> checkRegistration(String rsn)
+	public CompletableFuture<Registration> checkRegistration(String rsn)
 	{
-		CompletableFuture<Boolean> future = new CompletableFuture<>();
+		CompletableFuture<Registration> future = new CompletableFuture<>();
 		HttpUrl base = HttpUrl.parse(config.apiBaseUrl());
 		if (base == null)
 		{
@@ -126,7 +127,7 @@ public class GrottoApiClient
 				try (response)
 				{
 					Registration registration = parse(response, null, Registration.class, false);
-					future.complete(registration != null && registration.registered);
+					future.complete(registration != null ? registration : new Registration());
 				}
 				catch (ApiException e)
 				{
@@ -138,11 +139,6 @@ public class GrottoApiClient
 		return future;
 	}
 
-	/** {@code GET /public/registration}'s data. */
-	private static class Registration
-	{
-		boolean registered;
-	}
 
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
 	{

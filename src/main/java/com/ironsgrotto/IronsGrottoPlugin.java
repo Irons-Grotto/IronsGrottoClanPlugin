@@ -7,12 +7,14 @@ import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
 import com.ironsgrotto.api.model.PluginPolicy;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.ledger.LedgerRecorder;
 import com.ironsgrotto.outbox.Outbox;
 import com.ironsgrotto.outbox.OutboxEntry;
 import com.ironsgrotto.outbox.OutboxStore;
 import com.ironsgrotto.progress.CollectionLogButton;
 import com.ironsgrotto.progress.CollectionLogSync;
+import com.ironsgrotto.progress.ProgressCollector;
 import com.ironsgrotto.progress.ProgressSync;
 import com.ironsgrotto.progress.ProgressUploader;
 import com.ironsgrotto.screenshot.ScreenshotPolicy;
@@ -50,8 +52,10 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PluginChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
@@ -115,6 +119,9 @@ public class IronsGrottoPlugin extends Plugin
 	private ProgressUploader progressUploader;
 
 	@Inject
+	private ProgressCollector progressCollector;
+
+	@Inject
 	private CollectionLogSync collectionLogSync;
 
 	@Inject
@@ -131,7 +138,7 @@ public class IronsGrottoPlugin extends Plugin
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
 	/** Names the site said are registered, this session. */
-	private final Map<String, Boolean> registrations = new java.util.concurrent.ConcurrentHashMap<>();
+	private final Map<String, Registration> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
 	@Provides
 	IronsGrottoConfig provideConfig(ConfigManager configManager)
@@ -189,6 +196,8 @@ public class IronsGrottoPlugin extends Plugin
 		flushTask = executor.scheduleWithFixedDelay(this::flushOutbox, FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
 		refreshTask = executor.scheduleWithFixedDelay(this::refreshIfStale, REFRESH_CHECK_SECONDS, REFRESH_CHECK_SECONDS, TimeUnit.SECONDS);
 
+		panel.showLootTrackerOff(!progressCollector.isLootTrackerEnabled());
+
 		// Enabling the plugin while already logged in: the next game tick picks
 		// the account up and refreshes.
 		refreshPanelState();
@@ -238,6 +247,16 @@ public class IronsGrottoPlugin extends Plugin
 			{
 				panel.showLoggedOut();
 			}
+		}
+	}
+
+	@Subscribe
+	public void onPluginChanged(PluginChanged event)
+	{
+		GrottoPanel current = panel;
+		if (event.getPlugin() instanceof LootTrackerPlugin && current != null)
+		{
+			current.showLootTrackerOff(!progressCollector.isLootTrackerEnabled());
 		}
 	}
 
@@ -302,23 +321,23 @@ public class IronsGrottoPlugin extends Plugin
 	 */
 	private void lookUpRegistration(String rsn)
 	{
-		Boolean known = registrations.get(rsn);
+		Registration known = registrations.get(rsn);
 		if (known != null)
 		{
-			panel.showTokenSource(rsn, known);
+			panel.showTokenSource(rsn, known.sendsToJoin());
 			return;
 		}
 
 		api.checkRegistration(rsn)
-			.thenAccept(registered ->
+			.thenAccept(registration ->
 			{
 				// Only a "yes" is kept: a new member who joins mid-session is
 				// asked again next time and sent to "Get a token".
-				if (registered)
+				if (registration.isRegistered())
 				{
-					registrations.put(rsn, true);
+					registrations.put(rsn, registration);
 				}
-				panel.showTokenSource(rsn, registered);
+				panel.showTokenSource(rsn, registration.sendsToJoin());
 			})
 			.exceptionally(error ->
 			{

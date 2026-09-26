@@ -40,8 +40,8 @@ public interface IronsGrottoConfig extends Config
 
 	@ConfigItem(
 		keyName = "screenshots",
-		name = "Screenshots",
-		description = "Screenshot valuable drops, new log slots and pets for the clan drops channel",
+		name = "Post to Discord",
+		description = "Screenshot valuable drops, new log slots and pets and post them in the clan drops channel. Drops are recorded either way.",
 		section = notificationsSection,
 		position = 2
 	)
