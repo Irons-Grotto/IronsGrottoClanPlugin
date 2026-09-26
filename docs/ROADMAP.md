@@ -13,7 +13,7 @@
   the ironman varbit (`accountType` on `PUT /progress`), overwrites the member's type, plugin-owned
   for 30 days. Panel warns while Loot Tracker is off. Screenshots removed entirely (both repos,
   migration 0030 drops `screenshot_url`); they return as a bingo-only feature. Plugin branch `mm/release-readiness`.
-  **Before deploy:** migrations 0026–0030 on prod.
+  **Prod migrations 0026–0030 applied 2026-09-26** (Neon; 31 total). Deploy #119 with the flag off.
 
 ## Status (session 2026-09-25, continued)
 - **M1–M6 built**, all tests green. **Token model hardened** (below). **M6.5 done** (plugin repo
