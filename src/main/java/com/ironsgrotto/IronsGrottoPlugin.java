@@ -58,7 +58,7 @@ import net.runelite.client.util.ImageUtil;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Irons Grotto",
+	name = "Irons Grotto Clan",
 	description = "Irons Grotto clan rank, SOTW/BOTW standings and event tracking",
 	tags = {"clan", "irons grotto", "rank", "bingo", "events"}
 )

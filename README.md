@@ -12,7 +12,7 @@ The Irons Grotto clan plugin.
 This plugin sends data about your account to the Irons Grotto server (ironsgrotto.xyz).
 
 ## Setup
-1. Log in to the game.
+1. Install **Irons Grotto Clan** from the Plugin Hub and log in to the game.
 2. Get a token at <https://ironsgrotto.xyz/plugin>. New members get one on the first step of
    <https://ironsgrotto.xyz/join>.
 3. Paste it into the Irons Grotto side panel.
