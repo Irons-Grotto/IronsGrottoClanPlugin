@@ -3,64 +3,85 @@ package com.ironsgrotto.progress;
 import com.ironsgrotto.session.AccountSession;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
-import net.runelite.api.FontID;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
-import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.SpriteManager;
+import net.runelite.client.game.SpriteOverride;
 
 /**
- * The "Grotto" button in the collection log's header, beside the search
- * button: pressing it syncs the whole log ({@link CollectionLogSync}).
+ * A small square button with the clan crest in the collection log's header,
+ * right of the search button: pressing it syncs the whole log
+ * ({@link CollectionLogSync}).
  *
- * The same stone button WikiSync and TempleOSRS add in the same row. Each of
- * them sits to the left of the close button and clears the log's custom
- * widgets when the log is built, so this one:
- * - is added after them (a lower event priority runs later), so theirs never
- *   delete it;
- * - goes to the left of whatever buttons are already in the row, however many
- *   of those plugins are on.
+ * Left of the title, not in the row on the right: WikiSync and TempleOSRS put
+ * their buttons there, and with both on a third one covered the log's title.
+ * The title bar is moved to start after ours.
+ *
+ * Both of those plugins clear the log's custom widgets when it's built, and
+ * Temple again when it's turned off, so this one:
+ * - is added after theirs (a lower event priority runs later);
+ * - puts itself back if one of them deletes it while the log is open;
+ * - only deletes widgets itself when every custom widget there is ours.
  */
 @Singleton
 public class CollectionLogButton
 {
 	static final String NAME = "Irons Grotto";
-	private static final int CLOSE_BUTTON_OFFSET = 28;
-	private static final int GAP = 5;
-	private static final int WIDTH = 60;
+	private static final int GAP = 4;
 	private static final int CORNER = 9;
-	private static final int TEXT_COLOUR = 0xd6d6d6;
-	private static final int TEXT_COLOUR_HOVERED = 0xffffff;
+	private static final int ICON_SIZE = 16;
+	/** Fully see-through: the click layer over the button draws nothing. */
+	private static final int TRANSPARENT = 255;
+
+	/** The crest, registered as a game sprite so a widget can draw it. */
+	@Getter
+	@RequiredArgsConstructor
+	enum Sprites implements SpriteOverride
+	{
+		CREST(-24_801, "/com/ironsgrotto/panel_icon.png");
+
+		private final int spriteId;
+		private final String fileName;
+	}
 
 	private final Client client;
 	private final ClientThread clientThread;
 	private final AccountSession session;
 	private final CollectionLogSync sync;
+	private final SpriteManager spriteManager;
 
 	@Inject
-	CollectionLogButton(Client client, ClientThread clientThread, AccountSession session, CollectionLogSync sync)
+	CollectionLogButton(Client client, ClientThread clientThread, AccountSession session, CollectionLogSync sync,
+		SpriteManager spriteManager)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
 		this.session = session;
 		this.sync = sync;
+		this.spriteManager = spriteManager;
 	}
 
 	/** Adds the button if the log is already open, e.g. when the plugin is turned on. */
 	public void startUp()
 	{
-		clientThread.invokeLater(this::add);
+		spriteManager.addSpriteOverrides(Sprites.values());
+		clientThread.invokeLater(() -> add(true));
 	}
 
 	public void shutDown()
 	{
 		clientThread.invokeLater(this::remove);
+		spriteManager.removeSpriteOverrides(Sprites.values());
 	}
 
 	@Subscribe(priority = -1)
@@ -69,11 +90,41 @@ public class CollectionLogButton
 		if (event.getScriptId() == GameIds.SCRIPT_COLLECTION_SETUP)
 		{
 			remove();
-			add();
+			add(true);
 		}
 	}
 
-	private void add()
+	/** Re-adds the button if another plugin deleted it while the log is open. */
+	@Subscribe
+	public void onGameTick(GameTick tick)
+	{
+		Widget parent = client.getWidget(InterfaceID.Collection.UNIVERSE);
+		if (parent != null && !parent.isHidden() && !hasVisibleButton(parent))
+		{
+			// The title bar already made room for it when the log was built.
+			add(false);
+		}
+	}
+
+	private static boolean hasVisibleButton(Widget parent)
+	{
+		Widget[] children = parent.getChildren();
+		if (children == null)
+		{
+			return false;
+		}
+		for (Widget child : children)
+		{
+			if (child != null && NAME.equals(child.getName()) && !child.isSelfHidden())
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** @param makeRoom move the title bar past the button; only once per build of the log */
+	private void add(boolean makeRoom)
 	{
 		// Only for an account the plugin tracks (not on excluded world types).
 		if (session.getIdentity() == null)
@@ -92,71 +143,58 @@ public class CollectionLogButton
 		}
 		Widget topBar = containerChildren[0];
 
+		// A square the height of the search button, just right of it.
+		int size = search.getOriginalHeight();
+		int x = search.getOriginalX() + search.getOriginalWidth() + GAP;
 		int y = search.getOriginalY();
-		int x = leftOfExistingButtons(parent, y);
-		int h = search.getOriginalHeight();
+		int xMode = search.getXPositionMode();
+		int yMode = search.getYPositionMode();
+		int edge = size - 2 * CORNER;
 		int[] sprites = GameIds.BUTTON_SPRITES;
 
-		// Positions count from the right edge (ABSOLUTE_RIGHT), so the left
-		// corners are the ones at x + WIDTH - CORNER.
+		// Left-anchored like the search button, so the top-left corner is at x.
 		Widget[] frame = {
-			graphic(parent, sprites[0], x, y, WIDTH, h, search.getYPositionMode()),
-			graphic(parent, sprites[1], x + WIDTH - CORNER, y, CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[2], x, y, CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[3], x + WIDTH - CORNER, y + h - CORNER, CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[4], x, y + h - CORNER, CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[5], x + WIDTH - CORNER, y + CORNER, CORNER, h - 2 * CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[6], x + CORNER, y, WIDTH - 2 * CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[7], x, y + CORNER, CORNER, h - 2 * CORNER, WidgetPositionMode.ABSOLUTE_TOP),
-			graphic(parent, sprites[8], x + CORNER, y + h - CORNER, WIDTH - 2 * CORNER, CORNER, WidgetPositionMode.ABSOLUTE_TOP),
+			graphic(parent, sprites[0], x, y, size, size, xMode, yMode),
+			graphic(parent, sprites[1], x, y, CORNER, CORNER, xMode, yMode),
+			graphic(parent, sprites[2], x + size - CORNER, y, CORNER, CORNER, xMode, yMode),
+			graphic(parent, sprites[3], x, y + size - CORNER, CORNER, CORNER, xMode, yMode),
+			graphic(parent, sprites[4], x + size - CORNER, y + size - CORNER, CORNER, CORNER, xMode, yMode),
+			graphic(parent, sprites[5], x, y + CORNER, CORNER, edge, xMode, yMode),
+			graphic(parent, sprites[6], x + CORNER, y, edge, CORNER, xMode, yMode),
+			graphic(parent, sprites[7], x + size - CORNER, y + CORNER, CORNER, edge, xMode, yMode),
+			graphic(parent, sprites[8], x + CORNER, y + size - CORNER, edge, CORNER, xMode, yMode),
 		};
+		int inset = (size - ICON_SIZE) / 2;
+		graphic(parent, Sprites.CREST.getSpriteId(), x + inset, y + inset, ICON_SIZE, ICON_SIZE, xMode, yMode);
 
-		Widget text = parent.createChild(-1, WidgetType.TEXT)
-			.setText("Grotto")
-			.setTextColor(TEXT_COLOUR)
-			.setFontId(FontID.PLAIN_11)
-			.setTextShadowed(true)
-			.setXPositionMode(WidgetPositionMode.ABSOLUTE_RIGHT)
-			.setYPositionMode(search.getYPositionMode())
-			.setXTextAlignment(WidgetTextAlignment.CENTER)
-			.setYTextAlignment(WidgetTextAlignment.CENTER)
+		// On top of everything, so the whole button takes the mouse.
+		Widget clickLayer = parent.createChild(-1, WidgetType.RECTANGLE)
+			.setFilled(true)
+			.setOpacity(TRANSPARENT)
+			.setXPositionMode(xMode)
+			.setYPositionMode(yMode)
 			.setPos(x, y)
-			.setSize(WIDTH, h)
+			.setSize(size, size)
 			.setName(NAME);
-		text.setHasListener(true);
-		text.setOnMouseOverListener((JavaScriptCallback) ev -> hover(frame, text, true));
-		text.setOnMouseLeaveListener((JavaScriptCallback) ev -> hover(frame, text, false));
-		text.setAction(0, "Sync your collection log with Irons Grotto");
-		text.setOnOpListener((JavaScriptCallback) ev -> sync.requestSync());
-		text.revalidate();
+		clickLayer.setHasListener(true);
+		clickLayer.setOnMouseOverListener((JavaScriptCallback) ev -> hover(frame, true));
+		clickLayer.setOnMouseLeaveListener((JavaScriptCallback) ev -> hover(frame, false));
+		clickLayer.setAction(0, "Sync collection log");
+		clickLayer.setOnOpListener((JavaScriptCallback) ev -> sync.requestSync());
+		clickLayer.revalidate();
 
-		// The draggable title bar would otherwise sit over the button and take its clicks.
-		topBar.setOriginalWidth(topBar.getOriginalWidth() - (WIDTH + GAP));
-		topBar.revalidate();
+		// The draggable title bar would otherwise sit over the button and take
+		// its clicks. It's left-anchored after the search button: start it
+		// after ours instead.
+		if (makeRoom && topBar.getXPositionMode() == WidgetPositionMode.ABSOLUTE_LEFT
+			&& topBar.getOriginalX() < x + size + GAP)
+		{
+			int shift = x + size + GAP - topBar.getOriginalX();
+			topBar.setOriginalX(topBar.getOriginalX() + shift);
+			topBar.setOriginalWidth(topBar.getOriginalWidth() - shift);
+			topBar.revalidate();
+		}
 		parent.revalidate();
-	}
-
-	/**
-	 * Where this button goes: left of the close button, and left of any
-	 * button another plugin already put in the row.
-	 */
-	private static int leftOfExistingButtons(Widget parent, int rowY)
-	{
-		int x = CLOSE_BUTTON_OFFSET + GAP;
-		Widget[] children = parent.getChildren();
-		if (children == null)
-		{
-			return x;
-		}
-		for (Widget child : children)
-		{
-			if (child != null && !child.isSelfHidden() && !NAME.equals(child.getName())
-				&& child.getXPositionMode() == WidgetPositionMode.ABSOLUTE_RIGHT && child.getOriginalY() == rowY)
-			{
-				x = Math.max(x, child.getOriginalX() + child.getOriginalWidth() + GAP);
-			}
-		}
-		return x;
 	}
 
 	/**
@@ -200,11 +238,11 @@ public class CollectionLogButton
 		parent.revalidate();
 	}
 
-	private static Widget graphic(Widget parent, int sprite, int x, int y, int w, int h, int yMode)
+	private static Widget graphic(Widget parent, int sprite, int x, int y, int w, int h, int xMode, int yMode)
 	{
 		Widget widget = parent.createChild(-1, WidgetType.GRAPHIC)
 			.setSpriteId(sprite)
-			.setXPositionMode(WidgetPositionMode.ABSOLUTE_RIGHT)
+			.setXPositionMode(xMode)
 			.setYPositionMode(yMode)
 			.setPos(x, y)
 			.setSize(w, h)
@@ -213,13 +251,12 @@ public class CollectionLogButton
 		return widget;
 	}
 
-	private static void hover(Widget[] frame, Widget text, boolean hovered)
+	private static void hover(Widget[] frame, boolean hovered)
 	{
 		int[] sprites = hovered ? GameIds.BUTTON_SPRITES_HOVERED : GameIds.BUTTON_SPRITES;
 		for (int i = 0; i < frame.length; i++)
 		{
 			frame[i].setSpriteId(sprites[i]);
 		}
-		text.setTextColor(hovered ? TEXT_COLOUR_HOVERED : TEXT_COLOUR);
 	}
 }
