@@ -86,7 +86,7 @@ public class LootEventTracker
 		{
 			int id = entry.getKey();
 			int quantity = entry.getValue();
-			int price = itemManager.getItemPrice(id);
+			long price = itemManager.getItemPrice(id);
 
 			JsonObject item = new JsonObject();
 			item.addProperty("id", id);
@@ -96,7 +96,7 @@ public class LootEventTracker
 			item.addProperty("quantity", quantity);
 			item.addProperty("price", price);
 			items.add(item);
-			total += (long) price * quantity;
+			total += price * quantity;
 		}
 
 		JsonObject payload = new JsonObject();
