@@ -82,7 +82,7 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   (for example `ConfigManager`) shows which store a method reads.
 
 ## RuneLite: threads
-- Never block the client thread. HTTP and JPEG encoding run on the plugin's own `SyncExecutor`,
+- Never block the client thread. HTTP runs on the plugin's own `SyncExecutor`,
   not RuneLite's shared scheduled executor (one thread for every plugin).
 - A scheduled task that throws is never run again. Catch `RuntimeException` in periodic work.
 - Swing only on the EDT. `GrottoPanel` methods hop onto it themselves.
