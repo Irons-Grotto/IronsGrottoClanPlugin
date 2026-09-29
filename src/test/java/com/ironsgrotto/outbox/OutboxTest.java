@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.session.AccountIdentity;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -16,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import net.runelite.client.util.Filepath;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -30,14 +30,14 @@ public class OutboxTest
 	private final List<String> messages = new ArrayList<>();
 	private final List<List<OutboxEntry>> sent = new ArrayList<>();
 	private MutableClock clock;
-	private Path file;
+	private Filepath file;
 	private ApiException nextFailure;
 
 	@Before
 	public void setUp() throws Exception
 	{
 		clock = new MutableClock();
-		file = Files.createTempDirectory("outbox").resolve("outbox.json");
+		file = Filepath.Unchecked.getRooted(Files.createTempDirectory("outbox")).join("outbox.json");
 		nextFailure = null;
 	}
 

@@ -23,6 +23,7 @@ import com.ironsgrotto.tracker.ChatEventTracker;
 import com.ironsgrotto.tracker.LootEventTracker;
 import com.ironsgrotto.ui.GrottoPanel;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +41,6 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.client.RuneLite;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -59,6 +59,8 @@ import net.runelite.client.util.ImageUtil;
 @Slf4j
 @PluginDescriptor(
 	name = "Irons Grotto Clan",
+	internalName = "irons-grotto",
+	legacyDataDirectory = "irons-grotto",
 	description = "Irons Grotto clan rank, SOTW/BOTW standings and event tracking",
 	tags = {"clan", "irons grotto", "rank", "bingo", "events"}
 )
@@ -140,7 +142,7 @@ public class IronsGrottoPlugin extends Plugin
 	}
 
 	@Override
-	protected void startUp()
+	protected void startUp() throws IOException
 	{
 		executor.start();
 		panel = new GrottoPanel(siteUrl());
@@ -155,8 +157,7 @@ public class IronsGrottoPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 
-		java.nio.file.Path dataDir = RuneLite.RUNELITE_DIR.toPath().resolve("irons-grotto");
-		OutboxStore store = new OutboxStore(dataDir.resolve("outbox.json"), gson);
+		OutboxStore store = new OutboxStore(getPluginDirectory().join("outbox.json"), gson);
 		outbox = new Outbox(this::sendEvents, store, Clock.systemUTC(), this::chat);
 
 		recorder.attach(outbox, entry ->
