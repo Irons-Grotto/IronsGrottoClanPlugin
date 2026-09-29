@@ -7,6 +7,10 @@ import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatMessageParser;
 import com.ironsgrotto.SyncExecutor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.ChatMessageType;
@@ -335,14 +339,14 @@ public class ProgressSync
 		if (!uploader.submit(current, "collectionLog", snapshot))
 		{
 			// The same full log already reached the server this session.
-			collectionLog.onSent();
+			collectionLog.onSent(Collections.emptyList());
 			return;
 		}
 		awaitingFullLog = current;
 		executor.execute(uploader::flush);
 	}
 
-	private void onProgressSent(JsonObject body)
+	private void onProgressSent(JsonObject body, JsonObject result)
 	{
 		AccountIdentity waiting = awaitingFullLog;
 		if (waiting != null && isFullLog(body))
@@ -352,7 +356,7 @@ public class ProgressSync
 			// is saved to the logged-in account's profile.
 			if (waiting.equals(session.getIdentity()))
 			{
-				collectionLog.onSent();
+				collectionLog.onSent(newCollectionLogItems(result));
 			}
 		}
 	}
@@ -364,6 +368,22 @@ public class ProgressSync
 			awaitingFullLog = null;
 			collectionLog.onNotSent();
 		}
+	}
+
+	/**
+	 * The collection log items the upload added to the member's clan record,
+	 * or null if the server didn't say (not a member yet, or an older server).
+	 */
+	@Nullable
+	static List<String> newCollectionLogItems(@Nullable JsonObject result)
+	{
+		if (result == null || !result.has("newCollectionLogItems") || !result.get("newCollectionLogItems").isJsonArray())
+		{
+			return null;
+		}
+		List<String> names = new ArrayList<>();
+		result.getAsJsonArray("newCollectionLogItems").forEach(name -> names.add(name.getAsString()));
+		return names;
 	}
 
 	/** Whether an upload carried a complete collection log, not just its counters or one slot. */
