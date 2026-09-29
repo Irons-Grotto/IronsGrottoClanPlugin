@@ -90,9 +90,14 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
 ## Plugin Hub constraints
 - Java 11, no reflection, no extra runtime dependencies beyond what the client ships (OkHttp,
   Gson, Guava, Lombok at compile time).
-- The version is `build.gradle` `version` and `GrottoApiClient.PLUGIN_VERSION`. Nothing has
-  shipped yet, so there is nothing to bump until the first Hub release. After that, bump both for
-  every release. The server's `minimumPluginVersion` retires old releases with 426.
+- The version is `build.gradle` `version` and `GrottoApiClient.PLUGIN_VERSION`. 1.0.0 is on the
+  Hub (accepted 2026-09-29, `dc06870`); bump both for every release from now on. The server's
+  `minimumPluginVersion` retires old releases with 426.
+- **Releasing:** there is no Hub schedule. A release is a plugin-hub PR that changes `commit=` in
+  `plugins/irons-grotto` (branch off `upstream/master` in `~/plugin-hub-fork`, see the Hub README
+  "Updating a plugin"). Members get it once a maintainer merges it and they restart the client.
+  Batch changes into fewer releases; every update is reviewed. The Hub also rebuilds every
+  plugin against each RuneLite release, so an API break there can switch the plugin off until fixed.
 - `build=standard`: the Hub swaps in its own `build.gradle` (client + Lombok, no tests), so main
   code can't use anything else. `scripts/hub-check.sh` runs the Hub's packager on a pushed commit.
 - **File I/O goes through `Filepath`** (Hub reviewer, 2026-09-29), not `java.nio.file.Files` or

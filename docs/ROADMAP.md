@@ -54,7 +54,7 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - [x] `build=standard`; the Hub's packager builds it (`scripts/hub-check.sh`, same bundle as
   their CI). Only note: `support` unused, which the Hub allows.
 - [x] History checked for secrets before going public: only the local Docker `grotto:grotto`.
-- [ ] Production has no plugin API yet (`/api/plugin/v1/*` is 404). Ship the backend (flag off)
+- [x] Production has no plugin API yet (`/api/plugin/v1/*` is 404). Ship the backend (flag off)
   before a maintainer merges the Hub PR.
 - [x] Before going public: the public `POST /api/update-member-list` is gone; staff paste the
   Clanmate Export JSON into Admin, Member list (admin sign-in). irons-grotto-1 PR #118, branch
@@ -62,8 +62,8 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
   pane signed in, merge, and switch the exporter to JSON + clipboard.
 - [x] Fork `mattlm0831/plugin-hub`, branch `irons-grotto` pushed (clone at `~/plugin-hub-fork`),
   manifest at `419bf38` (hub-check passes). User: submit without waiting for the backend.
-- [ ] **Needs you:** make `Irons-Grotto/IronsGrottoClanPlugin` public once #118 is deployed.
-- [ ] Merge plugin PR #2, point `commit=` at `main`, open the plugin-hub PR.
+- [x] make `Irons-Grotto/IronsGrottoClanPlugin` public once #118 is deployed.
+- [x] Merge plugin PR #2, point `commit=` at `main`, open the plugin-hub PR.
 
 ## M6.5 Repo up and running (user 2026-09-25)
 - [x] `AGENTS.md`: working knowledge (RuneLite storage/game state/threads, dev pitfalls).
@@ -174,6 +174,8 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-29: **accepted on the Plugin Hub** (runelite/plugin-hub #17154, commit `dc06870`, 1.0.0).
+  Version bumps apply from the next release. Backend #126 (`newCollectionLogItems`) merged.
 - 2026-09-29: Hub review (plugin-hub #17154) asked for file I/O through RuneLite's `Filepath`. The
   outbox now lives in `~/.runelite/plugin-data/irons-grotto/` (old folder moved on first run).
   Branch `mm/filepath-io`. After it merges, point the Hub manifest `commit=` at the new `main`.
