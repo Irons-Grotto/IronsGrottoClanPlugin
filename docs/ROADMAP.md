@@ -174,6 +174,12 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-09-29: Hub review (plugin-hub #17154) asked for file I/O through RuneLite's `Filepath`. The
+  outbox now lives in `~/.runelite/plugin-data/irons-grotto/` (old folder moved on first run).
+  Branch `mm/filepath-io`. After it merges, point the Hub manifest `commit=` at the new `main`.
+- 2026-09-29: the collection log button sync now says "up to date" or "updated: N new items" from
+  the server's `newCollectionLogItems` (irons-grotto-1 #126, same plugin branch). New slots
+  already get "Log slot recorded: <item>" from the ledger, so no second line for them.
 - 2026-09-26 (later): screenshots removed from both repos (user: dubious value, lots of
   complexity); they return as a bingo-only feature. Admin ledger pane removed (system reads only).
 - 2026-09-26: release review. Validated the onboarding flag (scoped to `/join` plugin branch, menu,

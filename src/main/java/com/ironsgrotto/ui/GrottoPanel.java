@@ -10,8 +10,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +37,7 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
+import okhttp3.HttpUrl;
 
 /**
  * The sidebar: who you are in the clan, how close the next rank is, and the
@@ -261,14 +260,12 @@ public class GrottoPanel extends PluginPanel
 	/** The token page, naming the account so the new token is labelled with it. */
 	static String tokenUrlFor(String tokenUrl, String rsn)
 	{
-		try
-		{
-			return tokenUrl + "?name=" + URLEncoder.encode(rsn, "UTF-8").replace("+", "%20");
-		}
-		catch (UnsupportedEncodingException e)
+		HttpUrl url = HttpUrl.parse(tokenUrl);
+		if (url == null)
 		{
 			return tokenUrl;
 		}
+		return url.newBuilder().addQueryParameter("name", rsn).build().toString();
 	}
 
 	public void showError(String message)

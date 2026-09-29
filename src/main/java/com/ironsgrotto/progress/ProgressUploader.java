@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -38,7 +39,7 @@ public class ProgressUploader
 	private long nextAttemptAt;
 	private long backoffMs = INITIAL_BACKOFF_MS;
 	private volatile Consumer<JsonObject> onSynced = result -> { };
-	private volatile Consumer<JsonObject> onSent = body -> { };
+	private volatile BiConsumer<JsonObject, JsonObject> onSent = (body, result) -> { };
 	private volatile Consumer<JsonObject> onDropped = body -> { };
 
 	@Inject
@@ -59,8 +60,8 @@ public class ProgressUploader
 		this.onSynced = onSynced;
 	}
 
-	/** Called with each request body the server accepted. */
-	public void setOnSent(Consumer<JsonObject> onSent)
+	/** Called with each request body the server accepted, and the server's reply to it. */
+	public void setOnSent(BiConsumer<JsonObject, JsonObject> onSent)
 	{
 		this.onSent = onSent;
 	}
@@ -153,7 +154,7 @@ public class ProgressUploader
 				backoffMs = INITIAL_BACKOFF_MS;
 				nextAttemptAt = 0;
 			}
-			onSent.accept(body);
+			onSent.accept(body, result);
 			onSynced.accept(result);
 		}
 		catch (ApiException e)

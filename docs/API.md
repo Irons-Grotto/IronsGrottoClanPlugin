@@ -137,5 +137,7 @@ onboarding, never applied. Partial kinds are merged into the stored snapshot: a 
 `clues` tiers merge.
 Always stored as the account's latest snapshot. Members: merged upwards-only into the ranking
 record, rescored, category marked source `plugin`. Response `data`:
-`{ member, applied: [categories, plus "account_type" when the mode changed], points, rank }`.
+`{ member, applied: [categories, plus "account_type" when the mode changed], newCollectionLogItems, points, rank }`.
+`newCollectionLogItems` names the scored collection log items (notable items and pets) the upload
+added to the member's record; empty when nothing was new. Members only; absent for a prospect.
 Plugin-owned categories (synced ≤ 30 days) are not overwritten by the Temple/WikiSync refresh.

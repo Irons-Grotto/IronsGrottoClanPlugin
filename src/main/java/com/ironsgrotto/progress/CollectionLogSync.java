@@ -3,8 +3,10 @@ package com.ironsgrotto.progress;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -98,14 +100,31 @@ public class CollectionLogSync
 		client.runScript(GameIds.SCRIPT_COLLECTION_SEARCH_CLOSE);
 	}
 
-	/** The server accepted the complete log. Any thread. */
-	public void onSent()
+	/**
+	 * The server accepted the complete log. Any thread.
+	 *
+	 * @param newItems the items it added to the member's clan record, or null if it didn't say
+	 */
+	public void onSent(@Nullable List<String> newItems)
 	{
 		if (syncing)
 		{
 			syncing = false;
-			onMessage.accept("Collection log synced.");
+			onMessage.accept(sentMessage(newItems));
 		}
+	}
+
+	static String sentMessage(@Nullable List<String> newItems)
+	{
+		if (newItems == null)
+		{
+			return "Collection log synced.";
+		}
+		if (newItems.isEmpty())
+		{
+			return "Collection log up to date.";
+		}
+		return "Collection log updated: " + newItems.size() + (newItems.size() == 1 ? " new item." : " new items.");
 	}
 
 	/** The log could not be delivered: no account, or the server refused it. Any thread. */

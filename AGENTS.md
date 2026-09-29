@@ -82,7 +82,7 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   (for example `ConfigManager`) shows which store a method reads.
 
 ## RuneLite: threads
-- Never block the client thread. HTTP and JPEG encoding run on the plugin's own `SyncExecutor`,
+- Never block the client thread. HTTP runs on the plugin's own `SyncExecutor`,
   not RuneLite's shared scheduled executor (one thread for every plugin).
 - A scheduled task that throws is never run again. Catch `RuntimeException` in periodic work.
 - Swing only on the EDT. `GrottoPanel` methods hop onto it themselves.
@@ -95,6 +95,11 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   every release. The server's `minimumPluginVersion` retires old releases with 426.
 - `build=standard`: the Hub swaps in its own `build.gradle` (client + Lombok, no tests), so main
   code can't use anything else. `scripts/hub-check.sh` runs the Hub's packager on a pushed commit.
+- **File I/O goes through `Filepath`** (Hub reviewer, 2026-09-29), not `java.nio.file.Files` or
+  `java.io.File`. `Plugin.getPluginDirectory()` (needs `internalName` on `@PluginDescriptor`)
+  returns `~/.runelite/plugin-data/<internalName>/`; `legacyDataDirectory` moves an old
+  `~/.runelite/<dir>` there on first run if the new one doesn't exist. Tests build one with
+  `Filepath.Unchecked.getRooted(tempDir)`.
 - The Hub manifest's `warning` lists what the plugin sends (`docs/PLUGIN_HUB.md`). Sending
   something new means updating it in the same release.
 

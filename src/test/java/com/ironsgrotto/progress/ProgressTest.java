@@ -1,6 +1,7 @@
 package com.ironsgrotto.progress;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
@@ -157,7 +158,7 @@ public class ProgressTest
 		RecordingApi api = new RecordingApi();
 		ProgressUploader uploader = new ProgressUploader(api, Clock.systemUTC());
 		List<JsonObject> sent = new ArrayList<>();
-		uploader.setOnSent(sent::add);
+		uploader.setOnSent((body, result) -> sent.add(body));
 		JsonObject full = new JsonObject();
 		full.addProperty("complete", true);
 
@@ -172,6 +173,23 @@ public class ProgressTest
 		countsOnly.add("collectionLog", new JsonObject());
 		assertFalse(ProgressSync.isFullLog(countsOnly));
 		assertFalse(ProgressSync.isFullLog(new JsonObject()));
+	}
+
+	@Test
+	public void saysWhatAFullLogSyncChanged()
+	{
+		JsonObject reply = new JsonObject();
+		assertNull(ProgressSync.newCollectionLogItems(reply));
+		assertEquals("Collection log synced.", CollectionLogSync.sentMessage(null));
+
+		JsonArray names = new JsonArray();
+		reply.add("newCollectionLogItems", names);
+		assertEquals("Collection log up to date.", CollectionLogSync.sentMessage(ProgressSync.newCollectionLogItems(reply)));
+
+		names.add("Dragon pickaxe");
+		assertEquals("Collection log updated: 1 new item.", CollectionLogSync.sentMessage(ProgressSync.newCollectionLogItems(reply)));
+		names.add("Pet snakeling");
+		assertEquals("Collection log updated: 2 new items.", CollectionLogSync.sentMessage(ProgressSync.newCollectionLogItems(reply)));
 	}
 
 	@Test

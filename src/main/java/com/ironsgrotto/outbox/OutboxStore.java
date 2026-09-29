@@ -7,13 +7,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Filepath;
 
 /**
  * Keeps the outbox on disk, so events survive a crash, a closed client or a
@@ -27,10 +25,10 @@ public class OutboxStore
 	{
 	}.getType();
 
-	private final Path file;
+	private final Filepath file;
 	private final Gson gson;
 
-	public OutboxStore(Path file, Gson gson)
+	public OutboxStore(Filepath file, Gson gson)
 	{
 		this.file = file;
 		this.gson = gson;
@@ -38,12 +36,12 @@ public class OutboxStore
 
 	public List<OutboxEntry> load()
 	{
-		if (!Files.exists(file))
+		if (!file.exists())
 		{
 			return new ArrayList<>();
 		}
 
-		try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8))
+		try (Reader reader = file.openBufferedReader())
 		{
 			List<OutboxEntry> entries = gson.fromJson(reader, ENTRY_LIST);
 			return entries != null ? new ArrayList<>(entries) : new ArrayList<>();
@@ -59,15 +57,15 @@ public class OutboxStore
 	{
 		try
 		{
-			Files.createDirectories(file.getParent());
-			Path temp = file.resolveSibling(file.getFileName() + ".tmp");
+			file.getParent().createDirectories();
+			Filepath temp = file.getParent().join(file.getFileName() + ".tmp");
 
-			try (Writer writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8))
+			try (Writer writer = temp.openBufferedWriter())
 			{
 				gson.toJson(entries, ENTRY_LIST, writer);
 			}
 
-			Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			temp.moveTo(file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		}
 		catch (IOException e)
 		{
