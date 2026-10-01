@@ -22,6 +22,7 @@ import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatEventTracker;
 import com.ironsgrotto.tracker.LootEventTracker;
 import com.ironsgrotto.ui.ClanEventOverlay;
+import com.ironsgrotto.ui.CollapsibleSection;
 import com.ironsgrotto.ui.GrottoPanel;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -99,6 +100,9 @@ public class IronsGrottoPlugin extends Plugin
 	private OverlayManager overlayManager;
 
 	@Inject
+	private ConfigManager configManager;
+
+	@Inject
 	private ClanEventOverlay eventOverlay;
 
 	@Inject
@@ -162,7 +166,21 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp() throws IOException
 	{
 		executor.start();
-		panel = new GrottoPanel(this::siteUrl, itemManager);
+		panel = new GrottoPanel(this::siteUrl, itemManager, new CollapsibleSection.Store()
+		{
+			// Hidden config keys, not settings: which panel blocks are folded.
+			@Override
+			public boolean isCollapsed(String id)
+			{
+				return Boolean.TRUE.equals(configManager.getConfiguration(IronsGrottoConfig.GROUP, "collapsed." + id, Boolean.class));
+			}
+
+			@Override
+			public void setCollapsed(String id, boolean collapsed)
+			{
+				configManager.setConfiguration(IronsGrottoConfig.GROUP, "collapsed." + id, collapsed);
+			}
+		});
 		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");

@@ -21,4 +21,16 @@ public class MeResponse
 	 */
 	@Nullable
 	private Boolean pluginOnboarding;
+	/** Where the panel's buttons go. Null from a server older than the field: no buttons. */
+	@Nullable
+	private Links links;
+
+	@Data
+	public static class Links
+	{
+		@Nullable
+		private String dashboard;
+		@Nullable
+		private String discord;
+	}
 }
