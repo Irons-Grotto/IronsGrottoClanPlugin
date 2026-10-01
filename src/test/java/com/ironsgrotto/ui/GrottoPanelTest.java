@@ -23,4 +23,17 @@ public class GrottoPanelTest
 		assertFalse(GrottoPanel.looksLikeToken("abc_" + "a".repeat(43)));
 		assertFalse(GrottoPanel.looksLikeToken(token + "x"));
 	}
+
+	@Test
+	public void shortGpReadsLikeOsrsValues()
+	{
+		assertEquals("950", GrottoPanel.shortGp(950));
+		assertEquals("1K", GrottoPanel.shortGp(1_000));
+		assertEquals("952K", GrottoPanel.shortGp(952_409));
+		assertEquals("999K", GrottoPanel.shortGp(999_999));
+		assertEquals("1.25M", GrottoPanel.shortGp(1_255_777));
+		assertEquals("42.8M", GrottoPanel.shortGp(42_820_578));
+		assertEquals("42M", GrottoPanel.shortGp(42_065_000));
+		assertEquals("2.14B", GrottoPanel.shortGp(2_147_483_647L));
+	}
 }

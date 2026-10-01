@@ -49,6 +49,7 @@ import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.PluginChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
@@ -84,6 +85,9 @@ public class IronsGrottoPlugin extends Plugin
 
 	@Inject
 	private ClientToolbar clientToolbar;
+
+	@Inject
+	private ItemManager itemManager;
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
@@ -145,7 +149,7 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp() throws IOException
 	{
 		executor.start();
-		panel = new GrottoPanel(siteUrl());
+		panel = new GrottoPanel(this::siteUrl, itemManager);
 		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
@@ -257,6 +261,11 @@ public class IronsGrottoPlugin extends Plugin
 
 		if ("apiBaseUrl".equals(event.getKey()))
 		{
+			// Everything learned from the old server is about the old server.
+			// Requests already read the setting each time; the panel's links
+			// do too. Only these remembered answers need forgetting.
+			registrations.clear();
+			policy = new PluginPolicy();
 			outbox.resume();
 			refresh();
 		}
@@ -371,6 +380,16 @@ public class IronsGrottoPlugin extends Plugin
 			.exceptionally(error ->
 			{
 				log.debug("Could not load clan events", error);
+				return null;
+			});
+
+		// An older server has no top loots (404): the section stays hidden.
+		api.getTopLoot(identity)
+			.thenAccept(loots -> panel.showTopLoots(loots))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load top loots", error);
+				panel.showTopLoots(null);
 				return null;
 			});
 	}

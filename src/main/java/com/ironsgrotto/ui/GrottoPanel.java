@@ -3,13 +3,17 @@ package com.ironsgrotto.ui;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
+import com.ironsgrotto.api.model.TopLoot;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Cursor;
 import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,7 +21,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.swing.BorderFactory;
@@ -33,6 +40,7 @@ import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.border.EmptyBorder;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
@@ -56,6 +64,7 @@ public class GrottoPanel extends PluginPanel
 		"Turn on RuneLite's Loot Tracker plugin. Raid, clue and chest loot is only recorded with it on.");
 	private final JPanel accountSection = section();
 	private final JPanel eventSection = section();
+	private final JPanel topLootSection = section();
 	private final JPanel activitySection = section();
 	private final JLabel pendingLabel = new JLabel();
 
@@ -64,8 +73,9 @@ public class GrottoPanel extends PluginPanel
 		pendingLabel.setFont(FontManager.getRunescapeSmallFont());
 	}
 	private final Deque<OutboxEntry> recent = new ArrayDeque<>();
-	private final String tokenUrl;
-	private final String joinUrl;
+	private final ItemManager itemManager;
+	/** Read on every use, so a changed Server URL setting applies at once. */
+	private final Supplier<String> siteUrl;
 	/** The token prompt's explanation and link, swapped once we know if the account is registered. */
 	private final JPanel tokenIntro = inline();
 	private final JPanel tokenLink = inline();
@@ -74,15 +84,22 @@ public class GrottoPanel extends PluginPanel
 	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
+	/** Drops shown in the panel; the server sends more. */
+	private static final int TOP_LOOT_ROWS = 5;
+	private static final int ITEM_COLUMNS = 5;
+	/** The drop whose items are showing; one at a time. */
+	@Nullable
+	private String openLootId;
+	private List<TopLoot> topLoots = java.util.Collections.emptyList();
 	/** Quiet time after the last keystroke before a token is checked. */
 	private static final int TOKEN_SETTLE_MS = 400;
 	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
 
-	/** @param siteUrl the Irons Grotto site, e.g. https://ironsgrotto.xyz */
-	public GrottoPanel(String siteUrl)
+	/** @param siteUrl the Irons Grotto site as currently configured, e.g. https://ironsgrotto.xyz */
+	public GrottoPanel(Supplier<String> siteUrl, ItemManager itemManager)
 	{
-		this.tokenUrl = siteUrl + "/plugin";
-		this.joinUrl = siteUrl + "/join";
+		this.itemManager = itemManager;
+		this.siteUrl = siteUrl;
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -111,6 +128,8 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(eventSection);
 		content.add(Box.createVerticalStrut(8));
+		content.add(topLootSection);
+		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
 
@@ -133,6 +152,7 @@ public class GrottoPanel extends PluginPanel
 			status("Log in to see your progress.");
 			accountSection.setVisible(false);
 			eventSection.setVisible(false);
+			topLootSection.setVisible(false);
 		});
 	}
 
@@ -211,6 +231,7 @@ public class GrottoPanel extends PluginPanel
 			accountSection.add(tokenLink);
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
+			topLootSection.setVisible(false);
 			revalidateAll();
 		});
 	}
@@ -239,12 +260,12 @@ public class GrottoPanel extends PluginPanel
 		if (sendToJoin)
 		{
 			tokenIntro.add(wrapped(rsn + " isn't in Irons Grotto yet. Join to get a token, then paste it here."));
-			tokenLink.add(linkButton("Join Irons Grotto", joinUrl));
+			tokenLink.add(linkButton("Join Irons Grotto", siteUrl.get() + "/join"));
 		}
 		else
 		{
 			tokenIntro.add(wrapped("Get a token for this account and paste it here."));
-			tokenLink.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
+			tokenLink.add(linkButton("Get a token", tokenUrlFor(siteUrl.get() + "/plugin", rsn)));
 		}
 	}
 
@@ -373,6 +394,155 @@ public class GrottoPanel extends PluginPanel
 			eventSection.setVisible(true);
 			revalidateAll();
 		});
+	}
+
+	/**
+	 * The clan's biggest drops in the last 24 hours. Clicking a drop shows its
+	 * items; an empty list or an older server (null) hides the section.
+	 */
+	public void showTopLoots(@Nullable List<TopLoot> loots)
+	{
+		onEdt(() ->
+		{
+			topLoots = loots == null ? java.util.Collections.emptyList() : loots;
+			renderTopLoots();
+		});
+	}
+
+	private void renderTopLoots()
+	{
+		topLootSection.removeAll();
+		if (topLoots.isEmpty())
+		{
+			topLootSection.setVisible(false);
+			revalidateAll();
+			return;
+		}
+
+		JPanel header = new JPanel(new BorderLayout());
+		header.setOpaque(false);
+		header.setAlignmentX(Component.LEFT_ALIGNMENT);
+		header.add(heading("Top loots today"), BorderLayout.WEST);
+		JLabel window = small("last 24h");
+		header.add(window, BorderLayout.EAST);
+		header.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, header.getPreferredSize().height));
+		topLootSection.add(header);
+		topLootSection.add(Box.createVerticalStrut(4));
+
+		int position = 1;
+		for (TopLoot loot : topLoots.subList(0, Math.min(TOP_LOOT_ROWS, topLoots.size())))
+		{
+			boolean open = Objects.equals(loot.getId(), openLootId);
+			topLootSection.add(lootRow(position++, loot, open));
+			if (open)
+			{
+				topLootSection.add(lootItems(loot));
+			}
+		}
+
+		topLootSection.setVisible(true);
+		revalidateAll();
+	}
+
+	private JPanel lootRow(int position, TopLoot loot, boolean open)
+	{
+		JPanel row = new JPanel(new BorderLayout(4, 0));
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBackground(open ? ColorScheme.DARK_GRAY_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+		row.setBorder(new EmptyBorder(2, 2, 2, 2));
+		row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		row.setToolTipText(open ? "Hide items" : "Show items");
+
+		JLabel number = small(position + ".");
+		number.setVerticalAlignment(JLabel.TOP);
+		row.add(number, BorderLayout.WEST);
+
+		JPanel who = inline();
+		JLabel name = new JLabel(loot.getPlayerName());
+		name.setForeground(Color.WHITE);
+		who.add(name);
+		who.add(small(loot.getSource()));
+		row.add(who, BorderLayout.CENTER);
+
+		JLabel value = new JLabel(shortGp(loot.getTotalValue()));
+		value.setForeground(ACCENT);
+		value.setVerticalAlignment(JLabel.TOP);
+		row.add(value, BorderLayout.EAST);
+
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		row.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				openLootId = open ? null : loot.getId();
+				renderTopLoots();
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				row.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				row.setBackground(open ? ColorScheme.DARK_GRAY_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+			}
+		});
+		return row;
+	}
+
+	/** The drop's items as icons, biggest stack value first, five to a row. */
+	private JPanel lootItems(TopLoot loot)
+	{
+		JPanel grid = new JPanel(new GridLayout(0, ITEM_COLUMNS, 2, 2));
+		grid.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		grid.setBorder(new EmptyBorder(2, 16, 4, 2));
+		grid.setAlignmentX(Component.LEFT_ALIGNMENT);
+		for (TopLoot.Item item : loot.getItems())
+		{
+			JLabel icon = new JLabel();
+			icon.setHorizontalAlignment(JLabel.CENTER);
+			icon.setToolTipText("<html>" + escape(item.getName()) + " x " + NUMBERS.format(item.getQuantity())
+				+ "<br>" + NUMBERS.format(item.getPrice() * item.getQuantity()) + " gp</html>");
+			itemManager.getImage(item.getId(), item.getQuantity(), item.getQuantity() > 1).addTo(icon);
+			grid.add(icon);
+		}
+		grid.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, grid.getPreferredSize().height));
+		return grid;
+	}
+
+	/**
+	 * Three significant figures, the way OSRS players write values: 950, 952K,
+	 * 1.25M, 42.8M. Rounded down, so a drop is never shown as more than it was
+	 * (and 999,999 is 999K, not 1000K).
+	 */
+	static String shortGp(long gp)
+	{
+		if (gp < 1_000)
+		{
+			return Long.toString(gp);
+		}
+
+		String[] units = {"K", "M", "B"};
+		double value = gp;
+		int unit = -1;
+		while (value >= 1_000 && unit < units.length - 1)
+		{
+			value /= 1_000;
+			unit++;
+		}
+
+		// Round to three significant figures, then trim a trailing ".0".
+		int decimals = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+		String text = String.format(Locale.ROOT, "%." + decimals + "f", Math.floor(value * Math.pow(10, decimals)) / Math.pow(10, decimals));
+		if (text.contains("."))
+		{
+			text = text.replaceAll("0+$", "").replaceAll("\\.$", "");
+		}
+		return text + units[unit];
 	}
 
 	/** Adds an event this session recorded to the "Recent activity" list. */
