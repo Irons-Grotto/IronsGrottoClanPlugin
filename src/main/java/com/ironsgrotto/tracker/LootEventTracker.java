@@ -7,6 +7,7 @@ import com.ironsgrotto.ledger.LedgerRecorder;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.NPC;
@@ -31,6 +32,14 @@ import net.runelite.http.api.loottracker.LootRecordType;
 @Singleton
 public class LootEventTracker
 {
+	/**
+	 * Sailing salvage, which the Loot Tracker reports as an event named
+	 * "<Tier> salvage" every time some is sorted. Thousands a session and no
+	 * clan event is decided by it, so it is never queued. The server drops it
+	 * too, for plugins older than this check.
+	 */
+	private static final Pattern SALVAGE = Pattern.compile("^\\S+ salvage$", Pattern.CASE_INSENSITIVE);
+
 	private final LedgerRecorder recorder;
 	private final ItemManager itemManager;
 
@@ -58,11 +67,18 @@ public class LootEventTracker
 	@Subscribe
 	public void onLootReceived(LootReceived event)
 	{
-		if (event.getType() == LootRecordType.NPC || event.getType() == LootRecordType.PLAYER)
+		if (event.getType() == LootRecordType.NPC || event.getType() == LootRecordType.PLAYER
+			|| isIgnored(event.getType(), event.getName()))
 		{
 			return;
 		}
 		record(event.getName(), event.getType(), event.getCombatLevel(), event.getItems());
+	}
+
+	/** Loot that is never recorded: sailing salvage. */
+	static boolean isIgnored(LootRecordType type, String source)
+	{
+		return type == LootRecordType.EVENT && source != null && SALVAGE.matcher(source).matches();
 	}
 
 	private void record(String source, LootRecordType type, int combatLevel, Collection<ItemStack> stacks)
