@@ -1,9 +1,12 @@
 package com.ironsgrotto;
 
+import java.awt.Color;
+import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.ui.overlay.components.ComponentConstants;
 
 @ConfigGroup(IronsGrottoConfig.GROUP)
 public interface IronsGrottoConfig extends Config
@@ -19,9 +22,16 @@ public interface IronsGrottoConfig extends Config
 	String notificationsSection = "notifications";
 
 	@ConfigSection(
+		name = "Overlay",
+		description = "SOTW/BOTW standings on the game screen",
+		position = 2
+	)
+	String overlaySection = "overlay";
+
+	@ConfigSection(
 		name = "Advanced",
 		description = "For plugin development",
-		position = 2,
+		position = 3,
 		closedByDefault = true
 	)
 	String advancedSection = "advanced";
@@ -48,6 +58,31 @@ public interface IronsGrottoConfig extends Config
 	default boolean debug()
 	{
 		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showEventOverlay",
+		name = "Show SOTW/BOTW overlay",
+		description = "Standings on the game screen. Hold Alt to drag it, and drag an edge to resize; taller shows more rows",
+		section = overlaySection,
+		position = 0
+	)
+	default boolean showEventOverlay()
+	{
+		return false;
+	}
+
+	@Alpha
+	@ConfigItem(
+		keyName = "overlayBackground",
+		name = "Background",
+		description = "The overlay's background colour; lower the opacity to see the game through it",
+		section = overlaySection,
+		position = 1
+	)
+	default Color overlayBackground()
+	{
+		return ComponentConstants.STANDARD_BACKGROUND_COLOR;
 	}
 
 	@ConfigItem(

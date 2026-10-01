@@ -141,9 +141,15 @@ public class GrottoApiClient
 	}
 
 
-	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
+	/**
+	 * The running SOTW/BOTW and the next one.
+	 *
+	 * @param standings how many standings rows to ask for; a server older than
+	 *                  the parameter ignores it and sends five
+	 */
+	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity, int standings)
 	{
-		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class, null);
+		return getAsync(API_PREFIX + "/clan-events?standings=" + standings, identity, ClanEventStatus.class, null);
 	}
 
 	/** The clan's most valuable drops in the server's last 24 hours. A 404 is an older server. */
@@ -262,7 +268,14 @@ public class GrottoApiClient
 			throw new ApiException(0, "Invalid server URL: " + config.apiBaseUrl());
 		}
 
-		HttpUrl url = base.newBuilder().encodedPath(path).build();
+		// A path may carry a query ("/clan-events?standings=25").
+		int query = path.indexOf('?');
+		HttpUrl.Builder builder = base.newBuilder().encodedPath(query < 0 ? path : path.substring(0, query));
+		if (query >= 0)
+		{
+			builder.encodedQuery(path.substring(query + 1));
+		}
+		HttpUrl url = builder.build();
 
 		return new Request.Builder()
 			.url(url)

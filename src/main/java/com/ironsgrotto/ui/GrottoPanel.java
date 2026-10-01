@@ -84,6 +84,7 @@ public class GrottoPanel extends PluginPanel
 	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
+	private static final int PANEL_STANDINGS = 5;
 	/** Drops shown in the panel; the server sends more. */
 	private static final int TOP_LOOT_ROWS = 5;
 	private static final int ITEM_COLUMNS = 5;
@@ -355,7 +356,8 @@ public class GrottoPanel extends PluginPanel
 				}
 				else
 				{
-					for (ClanEventStatus.Standing standing : standings)
+					// The overlay asks for more rows; the panel keeps its top five.
+					for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
 					{
 						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
 							NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));

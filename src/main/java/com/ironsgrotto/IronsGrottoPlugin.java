@@ -21,6 +21,7 @@ import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatEventTracker;
 import com.ironsgrotto.tracker.LootEventTracker;
+import com.ironsgrotto.ui.ClanEventOverlay;
 import com.ironsgrotto.ui.GrottoPanel;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -55,6 +56,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 @Slf4j
@@ -70,6 +72,10 @@ public class IronsGrottoPlugin extends Plugin
 	private static final String EVENTS_PATH = GrottoApiClient.API_PREFIX + "/events";
 	private static final long FLUSH_INTERVAL_SECONDS = 5;
 	private static final long REFRESH_CHECK_SECONDS = 30;
+	/** Standings asked for: enough for the tallest overlay. The panel shows five. */
+	private static final int EVENT_STANDINGS = 25;
+	/** How often the overlay's standings refresh; the server caches Temple for 3 minutes. */
+	private static final long OVERLAY_REFRESH_MS = TimeUnit.MINUTES.toMillis(3);
 
 	@Inject
 	private IronsGrottoConfig config;
@@ -88,6 +94,12 @@ public class IronsGrottoPlugin extends Plugin
 
 	@Inject
 	private ItemManager itemManager;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ClanEventOverlay eventOverlay;
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
@@ -136,6 +148,7 @@ public class IronsGrottoPlugin extends Plugin
 
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
+	private volatile long lastEventsAt;
 	/** Names the site said are registered, this session. */
 	private final Map<String, Registration> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -160,6 +173,7 @@ public class IronsGrottoPlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+		overlayManager.add(eventOverlay);
 
 		OutboxStore store = new OutboxStore(getPluginDirectory().join("outbox.json"), gson);
 		outbox = new Outbox(this::sendEvents, store, Clock.systemUTC(), this::chat);
@@ -204,6 +218,8 @@ public class IronsGrottoPlugin extends Plugin
 		collectionLogButton.shutDown();
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
+		overlayManager.remove(eventOverlay);
+		eventOverlay.setStatus(null);
 		if (flushTask != null)
 		{
 			flushTask.cancel(false);
@@ -236,6 +252,7 @@ public class IronsGrottoPlugin extends Plugin
 			if (session.clear() && state == GameState.LOGIN_SCREEN)
 			{
 				panel.showLoggedOut();
+				eventOverlay.setStatus(null);
 			}
 		}
 	}
@@ -258,6 +275,15 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 
+
+		if ("showEventOverlay".equals(event.getKey()) && config.showEventOverlay())
+		{
+			AccountIdentity identity = session.getIdentity();
+			if (identity != null && tokens.has(identity))
+			{
+				refreshEvents(identity);
+			}
+		}
 
 		if ("apiBaseUrl".equals(event.getKey()))
 		{
@@ -375,13 +401,7 @@ public class IronsGrottoPlugin extends Plugin
 			})
 			.exceptionally(this::handleRefreshError);
 
-		api.getClanEvents(identity)
-			.thenAccept(events -> panel.showEvents(events))
-			.exceptionally(error ->
-			{
-				log.debug("Could not load clan events", error);
-				return null;
-			});
+		refreshEvents(identity);
 
 		// An older server has no top loots (404): the section stays hidden.
 		api.getTopLoot(identity)
@@ -390,6 +410,24 @@ public class IronsGrottoPlugin extends Plugin
 			{
 				log.debug("Could not load top loots", error);
 				panel.showTopLoots(null);
+				return null;
+			});
+	}
+
+	/** SOTW/BOTW standings for the panel and the overlay. */
+	private void refreshEvents(AccountIdentity identity)
+	{
+		lastEventsAt = System.currentTimeMillis();
+		api.getClanEvents(identity, EVENT_STANDINGS)
+			.thenAccept(events ->
+			{
+				panel.showEvents(events);
+				eventOverlay.setStatus(events);
+			})
+			.exceptionally(error ->
+			{
+				// The overlay keeps the last standings it had.
+				log.debug("Could not load clan events", error);
 				return null;
 			});
 	}
@@ -442,9 +480,18 @@ public class IronsGrottoPlugin extends Plugin
 	private void refreshIfStale()
 	{
 		long intervalMs = TimeUnit.SECONDS.toMillis(Math.max(60, policy.getPanelRefreshSeconds()));
-		if (session.getIdentity() != null && System.currentTimeMillis() - lastRefreshAt >= intervalMs)
+		AccountIdentity identity = session.getIdentity();
+		long now = System.currentTimeMillis();
+		if (identity != null && now - lastRefreshAt >= intervalMs)
 		{
 			refresh();
+		}
+		else if (identity != null && config.showEventOverlay() && tokens.has(identity)
+			&& now - lastEventsAt >= OVERLAY_REFRESH_MS)
+		{
+			// The overlay is on screen while playing, so its standings refresh
+			// more often than the panel's.
+			refreshEvents(identity);
 		}
 	}
 
