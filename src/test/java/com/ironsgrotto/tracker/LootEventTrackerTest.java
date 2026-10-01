@@ -23,4 +23,13 @@ public class LootEventTrackerTest
 		assertFalse(LootEventTracker.isIgnored(LootRecordType.NPC, "Opulent salvage"));
 		assertFalse(LootEventTracker.isIgnored(LootRecordType.EVENT, null));
 	}
+
+	@Test
+	public void recognisesPickpocketMessages()
+	{
+		assertTrue(LootEventTracker.isPickpocket("You pick the H.A.M. Member's pocket."));
+		assertTrue(LootEventTracker.isPickpocket("You pick the Master Farmer's pocket."));
+		assertFalse(LootEventTracker.isPickpocket("You fail to pick the Master Farmer's pocket."));
+		assertFalse(LootEventTracker.isPickpocket("Your Maggot King kill count is: 673."));
+	}
 }

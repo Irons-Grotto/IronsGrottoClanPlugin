@@ -57,8 +57,18 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   reading taken earlier (`ProgressSync` caches one every ~100 ticks).
 - `ClientShutdown.waitFor(future)` holds exit briefly for a final flush.
 - `LootReceived` (raids, Barrows, clue caskets, other non-NPC loot) is posted **by the Loot
-  Tracker plugin**, so it only arrives while that plugin is enabled. `NpcLootReceived` and
+  Tracker plugin**, so it only arrives while that plugin is enabled. `ServerNpcLoot` and
   `PlayerLootReceived` come from the core client.
+- **NPC loot is `ServerNpcLoot`, not `NpcLootReceived`.** The game reports every NPC drop through
+  its loot-tracker script (7192, `loottracker_add_loot`), which `LootManager` turns into
+  `ServerNpcLoot` on the next game tick. It covers loot that never touches the ground (the
+  Maggot King, verified missing from 1.0.0's ledger) as well as ordinary drops. RuneLite's own
+  Loot Tracker subscribes to nothing else for NPCs (checked against client 1.13.0 bytecode).
+  `NpcLootReceived` (ground items under a dying NPC) still fires too: subscribing to both counts
+  every ground drop twice.
+- Pickpockets also go through script 7192. On the tick of "You pick …'s pocket" the server's NPC
+  loot is the pickpocket, which the Loot Tracker records as `PICKPOCKET`; skip `ServerNpcLoot`
+  on that tick (what the Loot Tracker does with `ignorePickpocketLoot`).
 - New collection log slots are read from the game's chat message, which only appears if the game
   setting "new collection log item" includes chat: varbit `OPTION_COLLECTION_NEW_ITEM` (11959),
   bit 1 = chat, bit 2 = popup.

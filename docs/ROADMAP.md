@@ -5,6 +5,45 @@
 > [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md) (who owns what data), [`API.md`](API.md) (contract),
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
+## M9 Member feedback round 1 → plugin 1.1.0 (user 2026-10-01)
+One plugin release. Branches `mm/feedback-round-1` in both repos. Validation loop (workspace
+`CLAUDE.md`): web change → local server → plugin change → `scripts/dev-client.sh` → user checks
+in game → commit only on a thumbs-up. Side panel follows the approved HTML wireframe.
+Binned: clan home world, SOTW/BOTW XP graph. "Old plugin" = a Discord link only.
+
+| # | Feature | State |
+|---|---|---|
+| 1 | Salvage out of the ledger: server accepts and discards (200, id in `accepted`), plugin never queues | **done, committed** |
+| 2 | Top loots today: `GET /top-loot` (server-clock 24h, members, no test/salvage), panel section, click for items | **done, committed** |
+| 2b | Server URL setting applies without a restart | **done, committed** |
+| 3 | NPC loot from `ServerNpcLoot` (below) | built, **needs an in-game check** |
+| 4 | SOTW/BOTW overlay: Alt-drag/resize, rows follow height, `@Alpha` background, `?standings=N` (≤25) | to do |
+| 5 | Panel links: Dashboard, Discord (`/me` `links`) | to do |
+| 6 | Message of the day: time-boxed (start/end), staff set it in /admin; daily 5pm New York job drafts the next 3 empty days with Claude (`claude-opus-5-5`, `ANTHROPIC_API_KEY`), each posted to #staff-chat with an approve link; only approved ones show; once per login in chat | to do |
+| 7 | Clan news (joins, rank ups, notable items, accomplishments) | to do |
+| 8 | Next unlocks: most common notable items among your points rank + next rank you lack; site profile + panel | to do |
+| 9 | Recruitment: public `/about` + pitch and buttons for non-members | to do |
+
+**NPC loot source (decided 2026-10-01).** The Maggot King's loot was never recorded (337 kcs, 0
+loot in prod): it arrives only as `ServerNpcLoot`, which 1.0.0 ignored, while the Loot Tracker's
+re-report of it is NPC-typed and skipped. RuneLite's Loot Tracker now uses `ServerNpcLoot` as its
+**only** NPC source, so the plugin does the same: `ServerNpcLoot` for every NPC (core, no Loot
+Tracker needed), the Loot Tracker only for non-NPC content (raids, clues, Barrows, Wintertodt,
+pickpockets), no `NpcLootReceived` (it would double every ground drop). Pickpocket ticks are
+skipped as the Loot Tracker does. See AGENTS.md. Bingo depends on this being right.
+
+**Open:**
+- In-game check of #3: a ground-drop NPC is recorded **once**; a Maggot King kill is recorded with
+  its kc; a pickpocket is recorded once, as `PICKPOCKET`.
+- Prod: kcs with no loot under any name for Corrupted Gauntlet (12), Royal Titans (6), TzTok-Jad
+  (3), Hespori (1). Re-check after 1.1.0; the Gauntlet and Fight Caves are reward interfaces
+  (Loot Tracker), the others may be fixed by #3.
+- Prod cleanup, needs the user: delete the 2,652 stored salvage rows; insert the Crimson kisten
+  backfill (Aceriwyn, kc 673, 2026-10-01 15:16:34 UTC; SQL prepared, flag `backfilled`). Both
+  were blocked for Claude by the permission classifier.
+- Local dev: `apps/web/.env.local` is the **production** database. `.env.development.local`
+  (gitignored) points `yarn dev` at local Postgres.
+
 ## Status (session 2026-09-26)
 - **Release readiness (2026-09-26):** backend PR **irons-grotto-1 #119** (`mm/plugin-foundations`,
   pushed, main merged in). Flag gaps closed: plugin sign-up refused with the flag off;
