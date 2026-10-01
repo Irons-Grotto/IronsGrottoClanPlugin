@@ -6,6 +6,7 @@ import com.google.inject.Provides;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
+import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.PluginPolicy;
 import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.ledger.LedgerRecorder;
@@ -24,6 +25,7 @@ import com.ironsgrotto.tracker.LootEventTracker;
 import com.ironsgrotto.ui.ClanEventOverlay;
 import com.ironsgrotto.ui.CollapsibleSection;
 import com.ironsgrotto.ui.GrottoPanel;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.time.Clock;
@@ -43,6 +45,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -58,7 +61,9 @@ import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 
 @Slf4j
 @PluginDescriptor(
@@ -73,6 +78,12 @@ public class IronsGrottoPlugin extends Plugin
 	private static final String EVENTS_PATH = GrottoApiClient.API_PREFIX + "/events";
 	private static final long FLUSH_INTERVAL_SECONDS = 5;
 	private static final long REFRESH_CHECK_SECONDS = 30;
+	/**
+	 * The message of the day's text: the blue from the clan logo (the site's
+	 * {@code --ig-tertiary}). The logo's green and teal vanish on the opaque
+	 * chat box and its indigo on the transparent one; this blue reads on both.
+	 */
+	private static final Color MOTD_COLOUR = new Color(0x2F8FE0);
 	/** Standings asked for: enough for the tallest overlay. The panel shows five. */
 	private static final int EVENT_STANDINGS = 25;
 	/** How often the overlay's standings refresh; the server caches Temple for 3 minutes. */
@@ -153,6 +164,8 @@ public class IronsGrottoPlugin extends Plugin
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
 	private volatile long lastEventsAt;
+	/** The account the message of the day was shown to this login; cleared at logout. */
+	private volatile String motdShownTo;
 	/** Names the site said are registered, this session. */
 	private final Map<String, Registration> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -271,6 +284,8 @@ public class IronsGrottoPlugin extends Plugin
 			{
 				panel.showLoggedOut();
 				eventOverlay.setStatus(null);
+				// The next login shows the message of the day again.
+				motdShownTo = null;
 			}
 		}
 	}
@@ -416,6 +431,7 @@ public class IronsGrottoPlugin extends Plugin
 			{
 				policy = me.getPolicy() != null ? me.getPolicy() : new PluginPolicy();
 				panel.showMe(me);
+				showMotdOnce(identity, me.getMotd());
 			})
 			.exceptionally(this::handleRefreshError);
 
@@ -558,6 +574,32 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 		say(message);
+	}
+
+	/**
+	 * The message of the day, once per login per account: the first refresh
+	 * after logging in shows it, a world hop does not. Tags are stripped, so
+	 * whatever the server sends is shown as plain text.
+	 */
+	private void showMotdOnce(AccountIdentity identity, MeResponse.Motd motd)
+	{
+		if (motd == null || motd.getMessage() == null || !config.showMotd()
+			|| identity.getAccountHash().equals(motdShownTo))
+		{
+			return;
+		}
+		motdShownTo = identity.getAccountHash();
+
+		String formatted = new ChatMessageBuilder()
+			.append(ChatColorType.NORMAL)
+			.append("[Irons Grotto] ")
+			.append(ColorUtil.wrapWithColorTag(Text.removeTags(motd.getMessage()), MOTD_COLOUR))
+			.build();
+
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage(formatted)
+			.build());
 	}
 
 	/** A chat line the member asked for (a button they pressed), whatever the chat setting. */

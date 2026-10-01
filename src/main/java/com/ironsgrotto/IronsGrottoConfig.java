@@ -49,11 +49,23 @@ public interface IronsGrottoConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "showMotd",
+		name = "Message of the day",
+		description = "Show the clan's message of the day in chat when you log in",
+		section = notificationsSection,
+		position = 1
+	)
+	default boolean showMotd()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "debug",
 		name = "Debug messages",
 		description = "Show every server response in chat",
 		section = notificationsSection,
-		position = 1
+		position = 2
 	)
 	default boolean debug()
 	{

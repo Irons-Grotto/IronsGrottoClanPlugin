@@ -33,4 +33,18 @@ public class MeResponse
 		@Nullable
 		private String discord;
 	}
+
+	/** The clan message of the day; null when there is none, or from an older server. */
+	@Nullable
+	private Motd motd;
+
+	@Data
+	public static class Motd
+	{
+		/** Changes whenever the message does. */
+		private String id;
+		private String message;
+		/** {@code clan} (set by staff) or {@code event} (the SOTW/BOTW line). */
+		private String source;
+	}
 }
