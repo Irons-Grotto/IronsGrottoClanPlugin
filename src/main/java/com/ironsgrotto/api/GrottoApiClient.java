@@ -54,7 +54,7 @@ public class GrottoApiClient
 	 * Sent with every request. The server refuses releases older than its
 	 * minimum with 426, which the plugin shows as "please update".
 	 */
-	public static final String PLUGIN_VERSION = "1.0.0";
+	public static final String PLUGIN_VERSION = "1.1.0";
 
 	private final OkHttpClient http;
 	private final Gson gson;

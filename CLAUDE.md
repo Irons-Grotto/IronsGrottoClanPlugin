@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 The Irons Grotto **RuneLite plugin** (Java 11, Gradle, Plugin Hub layout). It talks to the clan
-website's backend in `~/irons-grotto-1/apps/web` (Next.js) over a versioned API.
+website's backend in `~/grotto_code/irons-grotto-1/apps/web` (Next.js) over a versioned API.
 
 **Start every session with [`docs/ROADMAP.md`](docs/ROADMAP.md)** — current status, next step,
 local test setup and decisions. Update it at the end of every session and when an item completes.
@@ -33,6 +33,10 @@ pitfalls); read it before touching those areas and add to it when you learn some
   `java -ea -jar build/libs/irons-grotto-<version>-all.jar --developer-mode`.
 
 ## Shipping a change
+Anything a member can see goes through the validation loop in `~/grotto_code/CLAUDE.md` first
+(web change → local server → plugin change → `scripts/dev-client.sh` → the user checks it in game
+→ commit). Never commit a member-facing change the user has not seen working.
+
 Branch (`mm/<slug>`), commit, push, open a PR against `main`. The PR body says what changed, why,
 how it was tested — and what was **not** verified. CI (`.github/workflows/ci.yaml`) runs
 `./gradlew build` and fails a PR without a member summary.

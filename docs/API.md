@@ -13,7 +13,7 @@
   The one exception is `/api/plugin/v1/public/**`: no auth at all, public data only, rate limited
   per address.
 
-Backend lives in `~/irons-grotto-1/apps/web/app/api/plugin/v1/` (shared helpers in `../utils/`). Keep this file in sync with both
+Backend lives in `~/grotto_code/irons-grotto-1/apps/web/app/api/plugin/v1/` (shared helpers in `../utils/`). Keep this file in sync with both
 sides; the plugin's DTOs are in `src/main/java/com/ironsgrotto/api/model/`.
 
 ## Auth (every request)
@@ -48,7 +48,9 @@ Grotto" opens `/join`, which makes the token. Not registered without it (the sit
 ## `GET /api/plugin/v1/public/registration?rsn=<name>`
 **Public**: no token, no account headers; `X-Plugin-Version` still required (400/426 as above).
 30 requests/min per address (429 + `Retry-After`). Response `data`:
-`{ "registered": boolean, "pluginOnboarding": boolean }`. `registered` is true when a `players` row
+`{ "registered": boolean, "pluginOnboarding": boolean, "links": { "about", "dashboard", "discord" } }`
+(`links` since 1.1.0: fixed site URLs for the panel's About the clan and Discord buttons before
+there is a token). `registered` is true when a `players` row
 has that name (case-insensitive, active or not). `pluginOnboarding` is the site's
 `IS_GROTTO_PLUGIN_ENABLED`: whether `/join` has the plugin steps and makes a token. Missing (older
 server) reads as true.
@@ -65,14 +67,26 @@ Status: 400 bad headers/body · 401 token · 403 ownership · 426 plugin too old
               "currentRankThreshold", "nextRank", "nextRankThreshold" } | null,
   "joinUrl": "https://ironsgrotto.xyz/join" | null,
   "policy": { "panelRefreshSeconds": 300 },
-  "pluginOnboarding": true }
+  "pluginOnboarding": true,
+  "links": { "about": "…/about", "dashboard": "…/dashboard", "discord": "https://discord.gg/…" },
+  "motd": { "id": "…", "message": "…", "source": "clan|event" } | null }
 ```
+Since 1.1.0 (both optional; an older server sends neither):
+- `links`: where the panel's bottom buttons go (Dashboard for members, About the clan otherwise,
+  Discord). Sent so they change without a release.
+- `motd`: the message of the day: an approved one in its window (`source: clan`), else a line about
+  the running or next SOTW/BOTW (`event`), else null. The plugin shows it in chat once per login
+  per account. Plain text, at most 200 characters; tags are stripped on both sides. Staff manage
+  it in `/admin?pane=motd`; Claude drafts the next three empty days daily at 5pm New York, and a
+  draft is never shown until staff approve it.
 `pluginOnboarding` as in `/public/registration`: with it, a linked non-member's `joinUrl` is labelled
 "Continue" (they're partway through the plugin steps); without, "Join Irons Grotto".
 Policy source: `apps/web/config/plugin.ts`.
 
-## `GET /api/plugin/v1/clan-events`
-Same shape as `fetchClanEventStatus` (`app/data-sources/fetch-clan-event-status.ts`):
+## `GET /api/plugin/v1/clan-events[?standings=N]`
+Same shape as `fetchClanEventStatus` (`app/data-sources/fetch-clan-event-status.ts`).
+`standings` (1–25, since 1.1.0) asks for more rows, for the overlay; without it the server sends
+five, because 1.0.0 panels draw every standing they are sent.
 `{ active: { id, type, typeLabel, name, metricName, icon, startsAt, endsAt, participantCount,
 standings: [{ position, playerName, gained }] (top 5), standingsUnavailable } | null,
 next: { …summary } | null }`
@@ -103,6 +117,38 @@ Ids in neither list are retried. Client behaviour: 5xx/429/network → backoff (
 
 Server flags (never refusals): `kc_not_increasing` (≤ a KC this account already reported for that
 boss, test events excluded), `delayed` (arrived > 1h after `occurredAt`), `test` (dev tools).
+
+**Ignored loot (since 2026-10-01):** a `loot` event with `sourceType: EVENT` and a source matching
+`^\S+ salvage$` (sailing salvage, as the Loot Tracker names it) is answered as `accepted` and
+never stored. No message is sent for it. The plugin also stops queueing it from 1.1.0. Rule:
+`ignoredLootSources` in `apps/web/app/schemas/plugin-ledger.ts`.
+
+**NPC loot (1.1.0):** the plugin records NPC loot from RuneLite's `ServerNpcLoot` (the game's own
+loot reports), not `NpcLootReceived`. That covers loot that never touches the ground (the Maggot
+King). See AGENTS.md.
+
+## `GET /api/plugin/v1/top-loot` (1.1.0)
+The clan's ten most valuable drops whose events reached the server in the last 24 hours (server
+clock, `received_at`): active members only, no test events, no ignored loot. `data`:
+`[{ id, playerName, source, totalValue, occurredAt, items: [{ id, name, quantity, price }] }]`,
+biggest drop first, each drop's items biggest stack value first.
+
+## `GET /api/plugin/v1/news` (1.1.0)
+Clan news, newest first, 15 lines: `[{ kind: joined|rank_up|item|accomplishment, playerName,
+text, at }]`. `text` is what follows the name ("joined the clan", "ranked up to Captain", an item
+name, an accomplishment label). One sync's burst of log items is one line ("X and 9 more").
+
+## `GET /api/plugin/v1/upgrade-path` (1.1.0)
+The member's next unlocks; `data` is null for an account that is not a ranked member (and for
+mains). `{ ranks: { current, next|null }, cohortSize, items: [{ name, image, itemId|null, owners,
+share, points }] }`: the notable items most common among active ranked members whose points fall
+in the member's rank or the next one, that the member lacks. Most common first, fewer points first
+on a tie, eight at most, empty with fewer than five members to compare with. A band's ownership is
+cached for an hour; the member's own items are read fresh.
+
+## Rate limits
+Token requests: 120/min per token, counted in memory per server instance (no network call). The
+public registration lookup: 30/min per address in Redis, failing open after 1s.
 
 ## Consumer query layer (backend only)
 `lib/db/plugin-ledger-operations.ts` → `getLedgerEvents({ from, to, playerNames?, accountHashes?,

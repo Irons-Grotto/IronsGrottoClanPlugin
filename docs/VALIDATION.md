@@ -136,3 +136,23 @@ Needs `IS_GROTTO_PLUGIN_ENABLED=true` in the worktree `.env.local` (set) and a *
 - Clue counts update from the "You have completed N … Treasure Trails" message only (no full
   snapshot on login).
 - SOTW/BOTW standings still come from TempleOSRS (by design, for now).
+
+## 1.1.0 (M9: member feedback round 1)
+Seen working by the user in the dev client on 2026-10-01 unless marked.
+- [x] Top loots today: five drops, click one for its items; salvage never shown.
+- [x] SOTW/BOTW overlay: off by default; Alt-drag moves it, dragging an edge taller shows more rows;
+  Background has an opacity slider; the panel keeps five standings.
+- [x] Dashboard and Discord on their own row at the bottom; every block folds with its caret and
+  stays folded after a restart.
+- [x] Message of the day in chat once per login, in the logo blue; SOTW/BOTW line when none is set.
+- [x] Clan news: eight lines, coloured dot per kind, wrapped lines fit.
+- [x] Next unlocks in the panel (EclipseGoon, with local test members).
+- [x] Server URL changes apply without a restart.
+- [ ] **Not yet seen:** NPC loot from `ServerNpcLoot`: a ground-drop kill is recorded **once**, a
+  Maggot King kill is recorded with its kill count, a pickpocket is recorded once as PICKPOCKET.
+- [ ] **Not yet seen:** `/admin?pane=motd` (approve/edit/reject a draft, schedule, end now).
+- [ ] **Not yet run:** Claude drafting (needs `ANTHROPIC_API_KEY`); run the workflow by hand once
+  after deploy and check #staff-chat.
+- [ ] **Not yet seen:** the no-token and linked-non-member panels (pitch, About the clan, Discord),
+  the `/about` page and Next unlocks on the site's profile modal.
+- [ ] A 1.0.0 jar against the new server: still five standings; salvage accepted and dropped.
