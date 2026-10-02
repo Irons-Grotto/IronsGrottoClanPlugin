@@ -284,13 +284,14 @@ public class GrottoPanel extends PluginPanel
 	 * where this account gets its token: a new account joins first when
 	 * {@code /join} makes the token; otherwise {@code /plugin} makes one.
 	 */
-	public void showTokenSource(String rsn, boolean sendToJoin)
+	public void showTokenSource(String rsn, boolean sendToJoin, @Nullable MeResponse.Links links)
 	{
 		onEdt(() ->
 		{
 			if (rsn.equals(tokenPromptRsn))
 			{
 				fillTokenHelp(rsn, sendToJoin);
+				fillLinks(links, false);
 				revalidateAll();
 			}
 		});
@@ -302,6 +303,8 @@ public class GrottoPanel extends PluginPanel
 		tokenLink.removeAll();
 		if (sendToJoin)
 		{
+			tokenIntro.add(pitch());
+			tokenIntro.add(Box.createVerticalStrut(6));
 			tokenIntro.add(wrapped(rsn + " isn't in Irons Grotto yet. Join to get a token, then paste it here."));
 			tokenLink.add(linkButton("Join Irons Grotto", siteUrl.get() + "/join"));
 		}
@@ -349,6 +352,8 @@ public class GrottoPanel extends PluginPanel
 
 			if (member == null)
 			{
+				accountSection.body().add(pitch());
+				accountSection.body().add(Box.createVerticalStrut(6));
 				accountSection.body().add(small("Not a clan member yet."));
 				if (me.getJoinUrl() != null)
 				{
@@ -943,9 +948,18 @@ public class GrottoPanel extends PluginPanel
 		return row;
 	}
 
+	/** One line on what the clan is, for players who are not in it. */
+	private static JLabel pitch()
+	{
+		JLabel label = wrapped("Irons Grotto is an ironman clan: ranks earned from your account, "
+			+ "SOTW and BOTW every week, and events checked by this plugin.");
+		label.setForeground(Color.WHITE);
+		return label;
+	}
+
 	/**
-	 * Dashboard (members) and Discord, side by side at the bottom. Hidden when
-	 * the server sent no links (an older server) or none apply.
+	 * The bottom row: Dashboard for members, About the clan for everyone else,
+	 * and Discord. Hidden when the server sent no links (an older server).
 	 */
 	private void fillLinks(@Nullable MeResponse.Links links, boolean member)
 	{
@@ -953,6 +967,10 @@ public class GrottoPanel extends PluginPanel
 		if (links != null && member && links.getDashboard() != null)
 		{
 			linksRow.add(linkButton("Dashboard", links.getDashboard()));
+		}
+		if (links != null && !member && links.getAbout() != null)
+		{
+			linksRow.add(linkButton("About the clan", links.getAbout()));
 		}
 		if (links != null && links.getDiscord() != null)
 		{

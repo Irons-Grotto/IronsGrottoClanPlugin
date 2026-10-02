@@ -14,6 +14,9 @@ public class Registration
 	 */
 	@Nullable
 	private Boolean pluginOnboarding;
+	/** The panel's About and Discord buttons. Null from an older server. */
+	@Nullable
+	private MeResponse.Links links;
 
 	/** A new account joins first, when joining makes the token; otherwise it gets one from the token page. */
 	public boolean sendsToJoin()

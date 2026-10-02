@@ -28,6 +28,9 @@ public class MeResponse
 	@Data
 	public static class Links
 	{
+		/** The clan's public about page, for accounts that are not members. */
+		@Nullable
+		private String about;
 		@Nullable
 		private String dashboard;
 		@Nullable

@@ -377,7 +377,7 @@ public class IronsGrottoPlugin extends Plugin
 		Registration known = registrations.get(rsn);
 		if (known != null)
 		{
-			panel.showTokenSource(rsn, known.sendsToJoin());
+			panel.showTokenSource(rsn, known.sendsToJoin(), known.getLinks());
 			return;
 		}
 
@@ -390,7 +390,7 @@ public class IronsGrottoPlugin extends Plugin
 				{
 					registrations.put(rsn, registration);
 				}
-				panel.showTokenSource(rsn, registration.sendsToJoin());
+				panel.showTokenSource(rsn, registration.sendsToJoin(), registration.getLinks());
 			})
 			.exceptionally(error ->
 			{
