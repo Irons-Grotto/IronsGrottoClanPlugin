@@ -437,6 +437,16 @@ public class IronsGrottoPlugin extends Plugin
 
 		refreshEvents(identity);
 
+		// An older server has no news (404): the section stays hidden.
+		api.getNews(identity)
+			.thenAccept(news -> panel.showNews(news))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load clan news", error);
+				panel.showNews(null);
+				return null;
+			});
+
 		// An older server has no top loots (404): the section stays hidden.
 		api.getTopLoot(identity)
 			.thenAccept(loots -> panel.showTopLoots(loots))

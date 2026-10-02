@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
+import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.api.model.TopLoot;
@@ -150,6 +151,14 @@ public class GrottoApiClient
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity, int standings)
 	{
 		return getAsync(API_PREFIX + "/clan-events?standings=" + standings, identity, ClanEventStatus.class, null);
+	}
+
+	/** The clan's news, newest first. A 404 is an older server. */
+	public CompletableFuture<List<ClanNews>> getNews(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/news", identity, new TypeToken<List<ClanNews>>()
+		{
+		}.getType(), null);
 	}
 
 	/** The clan's most valuable drops in the server's last 24 hours. A 404 is an older server. */

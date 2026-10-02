@@ -1,6 +1,7 @@
 package com.ironsgrotto.ui;
 
 import com.ironsgrotto.api.model.ClanEventStatus;
+import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
 import com.ironsgrotto.api.model.TopLoot;
@@ -64,6 +65,7 @@ public class GrottoPanel extends PluginPanel
 	private final CollapsibleSection accountSection;
 	private final CollapsibleSection eventSection;
 	private final CollapsibleSection topLootSection;
+	private final CollapsibleSection newsSection;
 	private final CollapsibleSection activitySection;
 	/** Dashboard and Discord, on their own row at the bottom. */
 	private final JPanel linksRow = new JPanel(new GridLayout(1, 0, 4, 0));
@@ -89,6 +91,13 @@ public class GrottoPanel extends PluginPanel
 	/** Drops shown in the panel; the server sends more. */
 	private static final int TOP_LOOT_ROWS = 5;
 	private static final int ITEM_COLUMNS = 5;
+	/** News lines shown; the server sends more. */
+	private static final int NEWS_ROWS = 8;
+	/**
+	 * Room for a news line's text and time: the panel less its border (10 a
+	 * side), the section's (8 a side), the dot and the two gaps.
+	 */
+	private static final int NEWS_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16 - 6 - 10;
 	/** The drop whose items are showing; one at a time. */
 	@Nullable
 	private String openLootId;
@@ -108,6 +117,7 @@ public class GrottoPanel extends PluginPanel
 		this.accountSection = new CollapsibleSection("account", sections);
 		this.eventSection = new CollapsibleSection("event", sections);
 		this.topLootSection = new CollapsibleSection("topLoot", sections);
+		this.newsSection = new CollapsibleSection("news", sections);
 		this.activitySection = new CollapsibleSection("activity", sections);
 
 		setLayout(new BorderLayout());
@@ -139,6 +149,8 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(topLootSection);
 		content.add(Box.createVerticalStrut(8));
+		content.add(newsSection);
+		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
 
@@ -168,6 +180,7 @@ public class GrottoPanel extends PluginPanel
 			accountSection.setVisible(false);
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
+			newsSection.setVisible(false);
 			linksRow.setVisible(false);
 		});
 	}
@@ -249,6 +262,7 @@ public class GrottoPanel extends PluginPanel
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
+			newsSection.setVisible(false);
 			linksRow.setVisible(false);
 			revalidateAll();
 		});
@@ -554,6 +568,147 @@ public class GrottoPanel extends PluginPanel
 			text = text.replaceAll("0+$", "").replaceAll("\\.$", "");
 		}
 		return text + units[unit];
+	}
+
+	/**
+	 * The clan's news: who joined, ranked up, logged something notable or
+	 * achieved something, newest first. Empty or an older server (null)
+	 * hides the section.
+	 */
+	public void showNews(@Nullable List<ClanNews> news)
+	{
+		onEdt(() ->
+		{
+			newsSection.clear("Clan news");
+			if (news == null || news.isEmpty())
+			{
+				newsSection.setVisible(false);
+				revalidateAll();
+				return;
+			}
+
+			Instant now = Instant.now();
+			for (ClanNews line : news.subList(0, Math.min(NEWS_ROWS, news.size())))
+			{
+				newsSection.body().add(newsRow(line, now));
+			}
+			newsSection.setVisible(true);
+			revalidateAll();
+		});
+	}
+
+	private static JPanel newsRow(ClanNews line, Instant now)
+	{
+		JPanel row = new JPanel(new BorderLayout(5, 0));
+		row.setOpaque(false);
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBorder(new EmptyBorder(1, 0, 1, 0));
+
+		JLabel dot = new JLabel(new Dot(newsColour(line.getKind())));
+		dot.setVerticalAlignment(JLabel.TOP);
+		dot.setBorder(new EmptyBorder(4, 0, 0, 0));
+		row.add(dot, BorderLayout.WEST);
+
+		JLabel time = small(ago(line.getAt(), now));
+		time.setVerticalAlignment(JLabel.TOP);
+		time.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+
+		// An HTML label measures its height as one unwrapped line unless it is
+		// told its width, and a two-line item then overflows the row below.
+		// The text gets what is left of the panel after the dot and the time.
+		int width = NEWS_TEXT_WIDTH - time.getPreferredSize().width;
+		JLabel text = new JLabel("<html><div style='width:" + width + "px'><font color='#ffffff'>"
+			+ escape(line.getPlayerName()) + "</font> " + escape(line.getText()) + "</div></html>");
+		text.setFont(FontManager.getRunescapeSmallFont());
+		text.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		row.add(text, BorderLayout.CENTER);
+		row.add(time, BorderLayout.EAST);
+
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		return row;
+	}
+
+	/** Logo blue for joins, gold rank ups, green log items, purple accomplishments. */
+	static Color newsColour(@Nullable String kind)
+	{
+		if ("joined".equals(kind))
+		{
+			return new Color(0x2F8FE0);
+		}
+		if ("rank_up".equals(kind))
+		{
+			return new Color(0xF2C94C);
+		}
+		if ("item".equals(kind))
+		{
+			return ACCENT;
+		}
+		return new Color(0xC38BFF);
+	}
+
+	/** "now", "45m", "3h", "2d", "5w": how long ago, in one short word. */
+	static String ago(@Nullable String iso, Instant now)
+	{
+		if (iso == null)
+		{
+			return "";
+		}
+		try
+		{
+			long minutes = Math.max(0, Duration.between(Instant.parse(iso), now).toMinutes());
+			if (minutes < 1)
+			{
+				return "now";
+			}
+			if (minutes < 60)
+			{
+				return minutes + "m";
+			}
+			if (minutes < 24 * 60)
+			{
+				return (minutes / 60) + "h";
+			}
+			long days = minutes / (24 * 60);
+			return days < 14 ? days + "d" : (days / 7) + "w";
+		}
+		catch (DateTimeParseException e)
+		{
+			return "";
+		}
+	}
+
+	/** A small filled circle, drawn: the RuneScape font has no bullet glyphs. */
+	private static final class Dot implements javax.swing.Icon
+	{
+		private static final int SIZE = 6;
+		private final Color colour;
+
+		private Dot(Color colour)
+		{
+			this.colour = colour;
+		}
+
+		@Override
+		public void paintIcon(Component c, java.awt.Graphics g, int x, int y)
+		{
+			java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+			g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(colour);
+			g2.fillOval(x, y, SIZE, SIZE);
+			g2.dispose();
+		}
+
+		@Override
+		public int getIconWidth()
+		{
+			return SIZE;
+		}
+
+		@Override
+		public int getIconHeight()
+		{
+			return SIZE;
+		}
 	}
 
 	/** Adds an event this session recorded to the "Recent activity" list. */

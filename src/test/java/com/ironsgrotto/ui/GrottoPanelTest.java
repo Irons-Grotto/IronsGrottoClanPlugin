@@ -36,4 +36,16 @@ public class GrottoPanelTest
 		assertEquals("42M", GrottoPanel.shortGp(42_065_000));
 		assertEquals("2.14B", GrottoPanel.shortGp(2_147_483_647L));
 	}
+
+	@Test
+	public void agoIsOneShortWord()
+	{
+		java.time.Instant now = java.time.Instant.parse("2026-10-02T12:00:00Z");
+		assertEquals("now", GrottoPanel.ago("2026-10-02T11:59:30Z", now));
+		assertEquals("45m", GrottoPanel.ago("2026-10-02T11:15:00Z", now));
+		assertEquals("3h", GrottoPanel.ago("2026-10-02T09:00:00Z", now));
+		assertEquals("2d", GrottoPanel.ago("2026-09-30T11:00:00Z", now));
+		assertEquals("3w", GrottoPanel.ago("2026-09-10T12:00:00Z", now));
+		assertEquals("", GrottoPanel.ago("not a date", now));
+	}
 }
