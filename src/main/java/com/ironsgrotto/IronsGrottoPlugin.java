@@ -437,6 +437,16 @@ public class IronsGrottoPlugin extends Plugin
 
 		refreshEvents(identity);
 
+		// Non-members get null; an older server 404s. Either way, no section.
+		api.getUpgradePath(identity)
+			.thenAccept(path -> panel.showUpgradePath(path))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load next unlocks", error);
+				panel.showUpgradePath(null);
+				return null;
+			});
+
 		// An older server has no news (404): the section stays hidden.
 		api.getNews(identity)
 			.thenAccept(news -> panel.showNews(news))

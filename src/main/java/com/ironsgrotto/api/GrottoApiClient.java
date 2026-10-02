@@ -11,6 +11,7 @@ import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.api.model.TopLoot;
+import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.session.AccountIdentity;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -151,6 +152,15 @@ public class GrottoApiClient
 	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity, int standings)
 	{
 		return getAsync(API_PREFIX + "/clan-events?standings=" + standings, identity, ClanEventStatus.class, null);
+	}
+
+	/**
+	 * The member's next unlocks. Null data for an account that is not a ranked
+	 * member; a 404 is an older server.
+	 */
+	public CompletableFuture<UpgradePath> getUpgradePath(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/upgrade-path", identity, UpgradePath.class, null);
 	}
 
 	/** The clan's news, newest first. A 404 is an older server. */

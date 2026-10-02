@@ -5,6 +5,7 @@ import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
 import com.ironsgrotto.api.model.TopLoot;
+import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
 import java.awt.BorderLayout;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -66,6 +68,7 @@ public class GrottoPanel extends PluginPanel
 	private final CollapsibleSection eventSection;
 	private final CollapsibleSection topLootSection;
 	private final CollapsibleSection newsSection;
+	private final CollapsibleSection unlocksSection;
 	private final CollapsibleSection activitySection;
 	/** Dashboard and Discord, on their own row at the bottom. */
 	private final JPanel linksRow = new JPanel(new GridLayout(1, 0, 4, 0));
@@ -91,6 +94,9 @@ public class GrottoPanel extends PluginPanel
 	/** Drops shown in the panel; the server sends more. */
 	private static final int TOP_LOOT_ROWS = 5;
 	private static final int ITEM_COLUMNS = 5;
+	/** Next unlocks shown; the server sends more. */
+	private static final int UNLOCK_ROWS = 5;
+	private static final int UNLOCK_ICON = 20;
 	/** News lines shown; the server sends more. */
 	private static final int NEWS_ROWS = 8;
 	/**
@@ -118,6 +124,7 @@ public class GrottoPanel extends PluginPanel
 		this.eventSection = new CollapsibleSection("event", sections);
 		this.topLootSection = new CollapsibleSection("topLoot", sections);
 		this.newsSection = new CollapsibleSection("news", sections);
+		this.unlocksSection = new CollapsibleSection("unlocks", sections);
 		this.activitySection = new CollapsibleSection("activity", sections);
 
 		setLayout(new BorderLayout());
@@ -148,6 +155,8 @@ public class GrottoPanel extends PluginPanel
 		content.add(eventSection);
 		content.add(Box.createVerticalStrut(8));
 		content.add(topLootSection);
+		content.add(Box.createVerticalStrut(8));
+		content.add(unlocksSection);
 		content.add(Box.createVerticalStrut(8));
 		content.add(newsSection);
 		content.add(Box.createVerticalStrut(8));
@@ -181,6 +190,7 @@ public class GrottoPanel extends PluginPanel
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
 			linksRow.setVisible(false);
 		});
 	}
@@ -263,6 +273,7 @@ public class GrottoPanel extends PluginPanel
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
 			linksRow.setVisible(false);
 			revalidateAll();
 		});
@@ -571,6 +582,85 @@ public class GrottoPanel extends PluginPanel
 	}
 
 	/**
+	 * The notable items most members around this rank have and this member
+	 * does not. Hidden for non-members, an empty list, or an older server.
+	 */
+	public void showUpgradePath(@Nullable UpgradePath path)
+	{
+		onEdt(() ->
+		{
+			unlocksSection.clear("Next unlocks");
+			if (path == null || path.getItems().isEmpty())
+			{
+				unlocksSection.setVisible(false);
+				revalidateAll();
+				return;
+			}
+
+			String ranks = path.getRanks().getCurrent()
+				+ (path.getRanks().getNext() != null ? " and " + path.getRanks().getNext() : "");
+			JLabel caption = small("<html><div style='width:" + NEWS_TEXT_WIDTH + "px'>Most common among "
+				+ escape(ranks) + " members that you don't have yet</div></html>");
+			caption.setBorder(new EmptyBorder(0, 0, 4, 0));
+			unlocksSection.body().add(caption);
+
+			for (UpgradePath.Item item : path.getItems().subList(0, Math.min(UNLOCK_ROWS, path.getItems().size())))
+			{
+				unlocksSection.body().add(unlockRow(item));
+			}
+			unlocksSection.setVisible(true);
+			revalidateAll();
+		});
+	}
+
+	private JPanel unlockRow(UpgradePath.Item item)
+	{
+		JPanel row = new JPanel(new BorderLayout(6, 1));
+		row.setOpaque(false);
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBorder(new EmptyBorder(2, 0, 2, 0));
+
+		JLabel icon = new JLabel();
+		icon.setPreferredSize(new Dimension(UNLOCK_ICON, UNLOCK_ICON));
+		if (item.getItemId() != null)
+		{
+			// Item sprites are 36x32; shrunk to sit beside one line of text.
+			net.runelite.client.util.AsyncBufferedImage image = itemManager.getImage(item.getItemId());
+			image.onLoaded(() -> SwingUtilities.invokeLater(() ->
+				icon.setIcon(new javax.swing.ImageIcon(
+					net.runelite.client.util.ImageUtil.resizeImage(image, UNLOCK_ICON, UNLOCK_ICON, true)))));
+		}
+		row.add(icon, BorderLayout.WEST);
+
+		JPanel middle = inline();
+		JPanel line = new JPanel(new BorderLayout(4, 0));
+		line.setOpaque(false);
+		line.setAlignmentX(Component.LEFT_ALIGNMENT);
+		JLabel name = new JLabel(item.getName());
+		name.setForeground(Color.WHITE);
+		line.add(name, BorderLayout.CENTER);
+		JLabel share = new JLabel(Math.round(item.getShare() * 100) + "%");
+		share.setForeground(ACCENT);
+		line.add(share, BorderLayout.EAST);
+		middle.add(line);
+
+		JProgressBar bar = new JProgressBar(0, 100);
+		bar.setValue((int) Math.round(item.getShare() * 100));
+		bar.setForeground(ACCENT);
+		bar.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		bar.setBorder(BorderFactory.createEmptyBorder());
+		bar.setPreferredSize(new Dimension(0, 3));
+		bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 3));
+		bar.setAlignmentX(Component.LEFT_ALIGNMENT);
+		middle.add(bar);
+		row.add(middle, BorderLayout.CENTER);
+
+		row.setToolTipText(item.getOwners() + " of the members compared have it");
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		return row;
+	}
+
+	/**
 	 * The clan's news: who joined, ranked up, logged something notable or
 	 * achieved something, newest first. Empty or an older server (null)
 	 * hides the section.
@@ -583,6 +673,7 @@ public class GrottoPanel extends PluginPanel
 			if (news == null || news.isEmpty())
 			{
 				newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
 				revalidateAll();
 				return;
 			}
