@@ -61,7 +61,6 @@ import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
@@ -613,7 +612,9 @@ public class IronsGrottoPlugin extends Plugin
 		String formatted = new ChatMessageBuilder()
 			.append(ChatColorType.NORMAL)
 			.append("[Irons Grotto] ")
-			.append(ColorUtil.wrapWithColorTag(Text.removeTags(motd.getMessage()), MOTD_COLOUR))
+			// append(Color, text): plain append escapes tags, so a <col> tag
+			// built by hand shows up as text in the chat box.
+			.append(MOTD_COLOUR, Text.removeTags(motd.getMessage()))
 			.build();
 
 		chatMessageManager.queue(QueuedMessage.builder()
