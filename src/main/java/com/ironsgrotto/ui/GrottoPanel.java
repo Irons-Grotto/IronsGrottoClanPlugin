@@ -1,15 +1,21 @@
 package com.ironsgrotto.ui;
 
 import com.ironsgrotto.api.model.ClanEventStatus;
+import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
+import com.ironsgrotto.api.model.TopLoot;
+import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.ledger.LedgerEventType;
 import com.ironsgrotto.outbox.OutboxEntry;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Cursor;
 import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,7 +23,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.swing.BorderFactory;
@@ -33,6 +42,7 @@ import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.border.EmptyBorder;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
@@ -54,9 +64,14 @@ public class GrottoPanel extends PluginPanel
 	private final JLabel statusLabel = new JLabel();
 	private final JLabel lootTrackerLabel = wrapped(
 		"Turn on RuneLite's Loot Tracker plugin. Raid, clue and chest loot is only recorded with it on.");
-	private final JPanel accountSection = section();
-	private final JPanel eventSection = section();
-	private final JPanel activitySection = section();
+	private final CollapsibleSection accountSection;
+	private final CollapsibleSection eventSection;
+	private final CollapsibleSection topLootSection;
+	private final CollapsibleSection newsSection;
+	private final CollapsibleSection unlocksSection;
+	private final CollapsibleSection activitySection;
+	/** Dashboard and Discord, on their own row at the bottom. */
+	private final JPanel linksRow = new JPanel(new GridLayout(1, 0, 4, 0));
 	private final JLabel pendingLabel = new JLabel();
 
 	{
@@ -64,8 +79,9 @@ public class GrottoPanel extends PluginPanel
 		pendingLabel.setFont(FontManager.getRunescapeSmallFont());
 	}
 	private final Deque<OutboxEntry> recent = new ArrayDeque<>();
-	private final String tokenUrl;
-	private final String joinUrl;
+	private final ItemManager itemManager;
+	/** Read on every use, so a changed Server URL setting applies at once. */
+	private final Supplier<String> siteUrl;
 	/** The token prompt's explanation and link, swapped once we know if the account is registered. */
 	private final JPanel tokenIntro = inline();
 	private final JPanel tokenLink = inline();
@@ -74,15 +90,42 @@ public class GrottoPanel extends PluginPanel
 	private volatile Consumer<String> onTokenEntered = token -> { };
 
 	private static final int RECENT_LIMIT = 10;
+	private static final int PANEL_STANDINGS = 5;
+	/** Drops shown in the panel; the server sends more. */
+	private static final int TOP_LOOT_ROWS = 5;
+	private static final int ITEM_COLUMNS = 5;
+	/** Next unlocks shown; the server sends more. */
+	private static final int UNLOCK_ROWS = 5;
+	private static final int UNLOCK_ICON = 20;
+	/** News lines shown; the server sends more. */
+	private static final int NEWS_ROWS = 8;
+	/**
+	 * Room for a news line's text and time: the panel less its border (10 a
+	 * side), the section's (8 a side), the dot and the two gaps.
+	 */
+	private static final int NEWS_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16 - 6 - 10;
+	/** The drop whose items are showing; one at a time. */
+	@Nullable
+	private String openLootId;
+	private List<TopLoot> topLoots = java.util.Collections.emptyList();
 	/** Quiet time after the last keystroke before a token is checked. */
 	private static final int TOKEN_SETTLE_MS = 400;
 	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
 
-	/** @param siteUrl the Irons Grotto site, e.g. https://ironsgrotto.xyz */
-	public GrottoPanel(String siteUrl)
+	/**
+	 * @param siteUrl  the Irons Grotto site as currently configured, e.g. https://ironsgrotto.xyz
+	 * @param sections remembers which blocks the member folded away
+	 */
+	public GrottoPanel(Supplier<String> siteUrl, ItemManager itemManager, CollapsibleSection.Store sections)
 	{
-		this.tokenUrl = siteUrl + "/plugin";
-		this.joinUrl = siteUrl + "/join";
+		this.itemManager = itemManager;
+		this.siteUrl = siteUrl;
+		this.accountSection = new CollapsibleSection("account", sections);
+		this.eventSection = new CollapsibleSection("event", sections);
+		this.topLootSection = new CollapsibleSection("topLoot", sections);
+		this.newsSection = new CollapsibleSection("news", sections);
+		this.unlocksSection = new CollapsibleSection("unlocks", sections);
+		this.activitySection = new CollapsibleSection("activity", sections);
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -111,6 +154,12 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(eventSection);
 		content.add(Box.createVerticalStrut(8));
+		content.add(topLootSection);
+		content.add(Box.createVerticalStrut(8));
+		content.add(unlocksSection);
+		content.add(Box.createVerticalStrut(8));
+		content.add(newsSection);
+		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
 
@@ -118,6 +167,12 @@ public class GrottoPanel extends PluginPanel
 		// the panel only speaks up when the member has something to do.
 		pendingLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		content.add(pendingLabel);
+		content.add(Box.createVerticalStrut(8));
+
+		linksRow.setOpaque(false);
+		linksRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+		linksRow.setVisible(false);
+		content.add(linksRow);
 
 		add(content, BorderLayout.NORTH);
 
@@ -133,6 +188,10 @@ public class GrottoPanel extends PluginPanel
 			status("Log in to see your progress.");
 			accountSection.setVisible(false);
 			eventSection.setVisible(false);
+			topLootSection.setVisible(false);
+			newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
+			linksRow.setVisible(false);
 		});
 	}
 
@@ -163,12 +222,13 @@ public class GrottoPanel extends PluginPanel
 		onEdt(() ->
 		{
 			status(problem == null ? "" : "<html>" + escape(problem) + "</html>");
-			accountSection.removeAll();
-			accountSection.add(heading("Connect " + rsn));
+			accountSection.clear("Connect " + rsn);
+			// Asking the member to act: never folded away.
+			accountSection.setPinnedOpen(true);
 			tokenPromptRsn = rsn;
 			fillTokenHelp(rsn, false);
-			accountSection.add(tokenIntro);
-			accountSection.add(Box.createVerticalStrut(6));
+			accountSection.body().add(tokenIntro);
+			accountSection.body().add(Box.createVerticalStrut(6));
 
 			// No save button: a complete token is checked with the server as
 			// soon as it is pasted, and saved only if the server takes it.
@@ -206,11 +266,15 @@ public class GrottoPanel extends PluginPanel
 				}
 			});
 
-			accountSection.add(field);
-			accountSection.add(Box.createVerticalStrut(6));
-			accountSection.add(tokenLink);
+			accountSection.body().add(field);
+			accountSection.body().add(Box.createVerticalStrut(6));
+			accountSection.body().add(tokenLink);
 			accountSection.setVisible(true);
 			eventSection.setVisible(false);
+			topLootSection.setVisible(false);
+			newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
+			linksRow.setVisible(false);
 			revalidateAll();
 		});
 	}
@@ -220,13 +284,14 @@ public class GrottoPanel extends PluginPanel
 	 * where this account gets its token: a new account joins first when
 	 * {@code /join} makes the token; otherwise {@code /plugin} makes one.
 	 */
-	public void showTokenSource(String rsn, boolean sendToJoin)
+	public void showTokenSource(String rsn, boolean sendToJoin, @Nullable MeResponse.Links links)
 	{
 		onEdt(() ->
 		{
 			if (rsn.equals(tokenPromptRsn))
 			{
 				fillTokenHelp(rsn, sendToJoin);
+				fillLinks(links, false);
 				revalidateAll();
 			}
 		});
@@ -238,13 +303,15 @@ public class GrottoPanel extends PluginPanel
 		tokenLink.removeAll();
 		if (sendToJoin)
 		{
+			tokenIntro.add(pitch());
+			tokenIntro.add(Box.createVerticalStrut(6));
 			tokenIntro.add(wrapped(rsn + " isn't in Irons Grotto yet. Join to get a token, then paste it here."));
-			tokenLink.add(linkButton("Join Irons Grotto", joinUrl));
+			tokenLink.add(linkButton("Join Irons Grotto", siteUrl.get() + "/join"));
 		}
 		else
 		{
 			tokenIntro.add(wrapped("Get a token for this account and paste it here."));
-			tokenLink.add(linkButton("Get a token", tokenUrlFor(tokenUrl, rsn)));
+			tokenLink.add(linkButton("Get a token", tokenUrlFor(siteUrl.get() + "/plugin", rsn)));
 		}
 	}
 
@@ -277,33 +344,35 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			accountSection.removeAll();
+			accountSection.clear(me.getRsn());
 			tokenPromptRsn = null;
 			MemberStatus member = me.getMember();
-
-			accountSection.add(heading(me.getRsn()));
 
 			status("");
 
 			if (member == null)
 			{
-				accountSection.add(small("Not a clan member yet."));
+				accountSection.body().add(pitch());
+				accountSection.body().add(Box.createVerticalStrut(6));
+				accountSection.body().add(small("Not a clan member yet."));
 				if (me.getJoinUrl() != null)
 				{
-					accountSection.add(Box.createVerticalStrut(6));
+					accountSection.body().add(Box.createVerticalStrut(6));
 					// Linked but not joined yet. With the plugin steps on /join
 					// they're partway through it; without, it's a plain sign-up.
 					boolean partway = !Boolean.FALSE.equals(me.getPluginOnboarding());
-					accountSection.add(linkButton(partway ? "Continue" : "Join Irons Grotto", me.getJoinUrl()));
+					accountSection.body().add(linkButton(partway ? "Continue" : "Join Irons Grotto", me.getJoinUrl()));
 				}
 			}
 			else
 			{
-				accountSection.add(row("Rank", member.getRank()));
-				accountSection.add(row("Points", NUMBERS.format(Math.floor(member.getPoints()))));
-				accountSection.add(Box.createVerticalStrut(4));
-				accountSection.add(rankProgress(member));
+				accountSection.body().add(row("Rank", member.getRank()));
+				accountSection.body().add(row("Points", NUMBERS.format(Math.floor(member.getPoints()))));
+				accountSection.body().add(Box.createVerticalStrut(4));
+				accountSection.body().add(rankProgress(member));
 			}
+
+			fillLinks(me.getLinks(), member != null);
 
 			accountSection.setVisible(true);
 			revalidateAll();
@@ -314,27 +383,28 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			eventSection.removeAll();
+			eventSection.clear("");
 			ClanEventStatus.ActiveEvent active = events.getActive();
 
 			if (active != null)
 			{
-				eventSection.add(heading(shortType(active.getType()) + ": " + active.getMetricName()));
-				eventSection.add(small(timeLeft("Ends", active.getEndsAt())));
-				eventSection.add(Box.createVerticalStrut(4));
+				eventSection.setTitle(shortType(active.getType()) + ": " + active.getMetricName());
+				eventSection.body().add(small(timeLeft("Ends", active.getEndsAt())));
+				eventSection.body().add(Box.createVerticalStrut(4));
 
 				List<ClanEventStatus.Standing> standings = active.getStandings();
 				if (active.isStandingsUnavailable())
 				{
-					eventSection.add(small("Standings unavailable"));
+					eventSection.body().add(small("Standings unavailable"));
 				}
 				else if (standings.isEmpty())
 				{
-					eventSection.add(small("No gains yet"));
+					eventSection.body().add(small("No gains yet"));
 				}
 				else
 				{
-					for (ClanEventStatus.Standing standing : standings)
+					// The overlay asks for more rows; the panel keeps its top five.
+					for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
 					{
 						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
 							NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
@@ -342,7 +412,7 @@ public class GrottoPanel extends PluginPanel
 						{
 							line.getComponent(0).setForeground(ACCENT);
 						}
-						eventSection.add(line);
+						eventSection.body().add(line);
 					}
 				}
 			}
@@ -352,13 +422,13 @@ public class GrottoPanel extends PluginPanel
 				String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
 				if (active != null)
 				{
-					eventSection.add(Box.createVerticalStrut(4));
-					eventSection.add(small(upcoming));
+					eventSection.body().add(Box.createVerticalStrut(4));
+					eventSection.body().add(small(upcoming));
 				}
 				else
 				{
-					eventSection.add(heading(upcoming));
-					eventSection.add(small(timeLeft("Starts", next.getStartsAt())));
+					eventSection.setTitle(upcoming);
+					eventSection.body().add(small(timeLeft("Starts", next.getStartsAt())));
 				}
 			}
 
@@ -373,6 +443,368 @@ public class GrottoPanel extends PluginPanel
 			eventSection.setVisible(true);
 			revalidateAll();
 		});
+	}
+
+	/**
+	 * The clan's biggest drops in the last 24 hours. Clicking a drop shows its
+	 * items; an empty list or an older server (null) hides the section.
+	 */
+	public void showTopLoots(@Nullable List<TopLoot> loots)
+	{
+		onEdt(() ->
+		{
+			topLoots = loots == null ? java.util.Collections.emptyList() : loots;
+			renderTopLoots();
+		});
+	}
+
+	private void renderTopLoots()
+	{
+		topLootSection.clear("Top loots today");
+		if (topLoots.isEmpty())
+		{
+			topLootSection.setVisible(false);
+			revalidateAll();
+			return;
+		}
+
+		topLootSection.setAside("last 24h");
+
+		int position = 1;
+		for (TopLoot loot : topLoots.subList(0, Math.min(TOP_LOOT_ROWS, topLoots.size())))
+		{
+			boolean open = Objects.equals(loot.getId(), openLootId);
+			topLootSection.body().add(lootRow(position++, loot, open));
+			if (open)
+			{
+				topLootSection.body().add(lootItems(loot));
+			}
+		}
+
+		topLootSection.setVisible(true);
+		revalidateAll();
+	}
+
+	private JPanel lootRow(int position, TopLoot loot, boolean open)
+	{
+		JPanel row = new JPanel(new BorderLayout(4, 0));
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBackground(open ? ColorScheme.DARK_GRAY_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+		row.setBorder(new EmptyBorder(2, 2, 2, 2));
+		row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		row.setToolTipText(open ? "Hide items" : "Show items");
+
+		JLabel number = small(position + ".");
+		number.setVerticalAlignment(JLabel.TOP);
+		row.add(number, BorderLayout.WEST);
+
+		JPanel who = inline();
+		JLabel name = new JLabel(loot.getPlayerName());
+		name.setForeground(Color.WHITE);
+		who.add(name);
+		who.add(small(loot.getSource()));
+		row.add(who, BorderLayout.CENTER);
+
+		JLabel value = new JLabel(shortGp(loot.getTotalValue()));
+		value.setForeground(ACCENT);
+		value.setVerticalAlignment(JLabel.TOP);
+		row.add(value, BorderLayout.EAST);
+
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		row.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				openLootId = open ? null : loot.getId();
+				renderTopLoots();
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				row.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				row.setBackground(open ? ColorScheme.DARK_GRAY_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+			}
+		});
+		return row;
+	}
+
+	/** The drop's items as icons, biggest stack value first, five to a row. */
+	private JPanel lootItems(TopLoot loot)
+	{
+		JPanel grid = new JPanel(new GridLayout(0, ITEM_COLUMNS, 2, 2));
+		grid.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		grid.setBorder(new EmptyBorder(2, 16, 4, 2));
+		grid.setAlignmentX(Component.LEFT_ALIGNMENT);
+		for (TopLoot.Item item : loot.getItems())
+		{
+			JLabel icon = new JLabel();
+			icon.setHorizontalAlignment(JLabel.CENTER);
+			icon.setToolTipText("<html>" + escape(item.getName()) + " x " + NUMBERS.format(item.getQuantity())
+				+ "<br>" + NUMBERS.format(item.getPrice() * item.getQuantity()) + " gp</html>");
+			itemManager.getImage(item.getId(), item.getQuantity(), item.getQuantity() > 1).addTo(icon);
+			grid.add(icon);
+		}
+		grid.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, grid.getPreferredSize().height));
+		return grid;
+	}
+
+	/**
+	 * Three significant figures, the way OSRS players write values: 950, 952K,
+	 * 1.25M, 42.8M. Rounded down, so a drop is never shown as more than it was
+	 * (and 999,999 is 999K, not 1000K).
+	 */
+	static String shortGp(long gp)
+	{
+		if (gp < 1_000)
+		{
+			return Long.toString(gp);
+		}
+
+		String[] units = {"K", "M", "B"};
+		double value = gp;
+		int unit = -1;
+		while (value >= 1_000 && unit < units.length - 1)
+		{
+			value /= 1_000;
+			unit++;
+		}
+
+		// Round to three significant figures, then trim a trailing ".0".
+		int decimals = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+		String text = String.format(Locale.ROOT, "%." + decimals + "f", Math.floor(value * Math.pow(10, decimals)) / Math.pow(10, decimals));
+		if (text.contains("."))
+		{
+			text = text.replaceAll("0+$", "").replaceAll("\\.$", "");
+		}
+		return text + units[unit];
+	}
+
+	/**
+	 * The notable items most members around this rank have and this member
+	 * does not. Hidden for non-members, an empty list, or an older server.
+	 */
+	public void showUpgradePath(@Nullable UpgradePath path)
+	{
+		onEdt(() ->
+		{
+			unlocksSection.clear("Next unlocks");
+			if (path == null || path.getItems().isEmpty())
+			{
+				unlocksSection.setVisible(false);
+				revalidateAll();
+				return;
+			}
+
+			String ranks = path.getRanks().getCurrent()
+				+ (path.getRanks().getNext() != null ? " and " + path.getRanks().getNext() : "");
+			JLabel caption = small("<html><div style='width:" + NEWS_TEXT_WIDTH + "px'>Most common among "
+				+ escape(ranks) + " members that you don't have yet</div></html>");
+			caption.setBorder(new EmptyBorder(0, 0, 4, 0));
+			unlocksSection.body().add(caption);
+
+			for (UpgradePath.Item item : path.getItems().subList(0, Math.min(UNLOCK_ROWS, path.getItems().size())))
+			{
+				unlocksSection.body().add(unlockRow(item));
+			}
+			unlocksSection.setVisible(true);
+			revalidateAll();
+		});
+	}
+
+	private JPanel unlockRow(UpgradePath.Item item)
+	{
+		JPanel row = new JPanel(new BorderLayout(6, 1));
+		row.setOpaque(false);
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBorder(new EmptyBorder(2, 0, 2, 0));
+
+		JLabel icon = new JLabel();
+		icon.setPreferredSize(new Dimension(UNLOCK_ICON, UNLOCK_ICON));
+		if (item.getItemId() != null)
+		{
+			// Item sprites are 36x32; shrunk to sit beside one line of text.
+			net.runelite.client.util.AsyncBufferedImage image = itemManager.getImage(item.getItemId());
+			image.onLoaded(() -> SwingUtilities.invokeLater(() ->
+				icon.setIcon(new javax.swing.ImageIcon(
+					net.runelite.client.util.ImageUtil.resizeImage(image, UNLOCK_ICON, UNLOCK_ICON, true)))));
+		}
+		row.add(icon, BorderLayout.WEST);
+
+		JPanel middle = inline();
+		JPanel line = new JPanel(new BorderLayout(4, 0));
+		line.setOpaque(false);
+		line.setAlignmentX(Component.LEFT_ALIGNMENT);
+		JLabel name = new JLabel(item.getName());
+		name.setForeground(Color.WHITE);
+		line.add(name, BorderLayout.CENTER);
+		JLabel share = new JLabel(Math.round(item.getShare() * 100) + "%");
+		share.setForeground(ACCENT);
+		line.add(share, BorderLayout.EAST);
+		middle.add(line);
+
+		JProgressBar bar = new JProgressBar(0, 100);
+		bar.setValue((int) Math.round(item.getShare() * 100));
+		bar.setForeground(ACCENT);
+		bar.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		bar.setBorder(BorderFactory.createEmptyBorder());
+		bar.setPreferredSize(new Dimension(0, 3));
+		bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 3));
+		bar.setAlignmentX(Component.LEFT_ALIGNMENT);
+		middle.add(bar);
+		row.add(middle, BorderLayout.CENTER);
+
+		row.setToolTipText(item.getOwners() + " of the members compared have it");
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		return row;
+	}
+
+	/**
+	 * The clan's news: who joined, ranked up, logged something notable or
+	 * achieved something, newest first. Empty or an older server (null)
+	 * hides the section.
+	 */
+	public void showNews(@Nullable List<ClanNews> news)
+	{
+		onEdt(() ->
+		{
+			newsSection.clear("Clan news");
+			if (news == null || news.isEmpty())
+			{
+				newsSection.setVisible(false);
+			unlocksSection.setVisible(false);
+				revalidateAll();
+				return;
+			}
+
+			Instant now = Instant.now();
+			for (ClanNews line : news.subList(0, Math.min(NEWS_ROWS, news.size())))
+			{
+				newsSection.body().add(newsRow(line, now));
+			}
+			newsSection.setVisible(true);
+			revalidateAll();
+		});
+	}
+
+	private static JPanel newsRow(ClanNews line, Instant now)
+	{
+		JPanel row = new JPanel(new BorderLayout(5, 0));
+		row.setOpaque(false);
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBorder(new EmptyBorder(1, 0, 1, 0));
+
+		JLabel dot = new JLabel(new Dot(newsColour(line.getKind())));
+		dot.setVerticalAlignment(JLabel.TOP);
+		dot.setBorder(new EmptyBorder(4, 0, 0, 0));
+		row.add(dot, BorderLayout.WEST);
+
+		JLabel time = small(ago(line.getAt(), now));
+		time.setVerticalAlignment(JLabel.TOP);
+		time.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+
+		// An HTML label measures its height as one unwrapped line unless it is
+		// told its width, and a two-line item then overflows the row below.
+		// The text gets what is left of the panel after the dot and the time.
+		int width = NEWS_TEXT_WIDTH - time.getPreferredSize().width;
+		JLabel text = new JLabel("<html><div style='width:" + width + "px'><font color='#ffffff'>"
+			+ escape(line.getPlayerName()) + "</font> " + escape(line.getText()) + "</div></html>");
+		text.setFont(FontManager.getRunescapeSmallFont());
+		text.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		row.add(text, BorderLayout.CENTER);
+		row.add(time, BorderLayout.EAST);
+
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		return row;
+	}
+
+	/** Logo blue for joins, gold rank ups, green log items, purple accomplishments. */
+	static Color newsColour(@Nullable String kind)
+	{
+		if ("joined".equals(kind))
+		{
+			return new Color(0x2F8FE0);
+		}
+		if ("rank_up".equals(kind))
+		{
+			return new Color(0xF2C94C);
+		}
+		if ("item".equals(kind))
+		{
+			return ACCENT;
+		}
+		return new Color(0xC38BFF);
+	}
+
+	/** "now", "45m", "3h", "2d", "5w": how long ago, in one short word. */
+	static String ago(@Nullable String iso, Instant now)
+	{
+		if (iso == null)
+		{
+			return "";
+		}
+		try
+		{
+			long minutes = Math.max(0, Duration.between(Instant.parse(iso), now).toMinutes());
+			if (minutes < 1)
+			{
+				return "now";
+			}
+			if (minutes < 60)
+			{
+				return minutes + "m";
+			}
+			if (minutes < 24 * 60)
+			{
+				return (minutes / 60) + "h";
+			}
+			long days = minutes / (24 * 60);
+			return days < 14 ? days + "d" : (days / 7) + "w";
+		}
+		catch (DateTimeParseException e)
+		{
+			return "";
+		}
+	}
+
+	/** A small filled circle, drawn: the RuneScape font has no bullet glyphs. */
+	private static final class Dot implements javax.swing.Icon
+	{
+		private static final int SIZE = 6;
+		private final Color colour;
+
+		private Dot(Color colour)
+		{
+			this.colour = colour;
+		}
+
+		@Override
+		public void paintIcon(Component c, java.awt.Graphics g, int x, int y)
+		{
+			java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+			g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(colour);
+			g2.fillOval(x, y, SIZE, SIZE);
+			g2.dispose();
+		}
+
+		@Override
+		public int getIconWidth()
+		{
+			return SIZE;
+		}
+
+		@Override
+		public int getIconHeight()
+		{
+			return SIZE;
+		}
 	}
 
 	/** Adds an event this session recorded to the "Recent activity" list. */
@@ -391,7 +823,7 @@ public class GrottoPanel extends PluginPanel
 
 	private void renderRecent()
 	{
-		activitySection.removeAll();
+		activitySection.clear("Recent activity");
 		if (recent.isEmpty())
 		{
 			activitySection.setVisible(false);
@@ -399,10 +831,9 @@ public class GrottoPanel extends PluginPanel
 			return;
 		}
 
-		activitySection.add(heading("Recent activity"));
 		for (OutboxEntry entry : recent)
 		{
-			activitySection.add(small(describe(entry)));
+			activitySection.body().add(small(describe(entry)));
 		}
 
 		activitySection.setVisible(true);
@@ -477,17 +908,6 @@ public class GrottoPanel extends PluginPanel
 		repaint();
 	}
 
-	private static JPanel section()
-	{
-		JPanel panel = new JPanel();
-		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-		panel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-		panel.setVisible(false);
-		return panel;
-	}
-
 	/** A see-through holder that stacks its children, for parts of a section that change. */
 	private static JPanel inline()
 	{
@@ -496,15 +916,6 @@ public class GrottoPanel extends PluginPanel
 		panel.setOpaque(false);
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		return panel;
-	}
-
-	private static JLabel heading(String text)
-	{
-		JLabel label = new JLabel(text);
-		label.setFont(FontManager.getRunescapeBoldFont());
-		label.setForeground(Color.WHITE);
-		label.setAlignmentX(Component.LEFT_ALIGNMENT);
-		return label;
 	}
 
 	private static JLabel small(String text)
@@ -535,6 +946,38 @@ public class GrottoPanel extends PluginPanel
 		row.add(l);
 		row.add(r);
 		return row;
+	}
+
+	/** One line on what the clan is, for players who are not in it. */
+	private static JLabel pitch()
+	{
+		JLabel label = wrapped("Irons Grotto is an ironman clan: ranks earned from your account, "
+			+ "SOTW and BOTW every week, and events checked by this plugin.");
+		label.setForeground(Color.WHITE);
+		return label;
+	}
+
+	/**
+	 * The bottom row: Dashboard for members, About the clan for everyone else,
+	 * and Discord. Hidden when the server sent no links (an older server).
+	 */
+	private void fillLinks(@Nullable MeResponse.Links links, boolean member)
+	{
+		linksRow.removeAll();
+		if (links != null && member && links.getDashboard() != null)
+		{
+			linksRow.add(linkButton("Dashboard", links.getDashboard()));
+		}
+		if (links != null && !member && links.getAbout() != null)
+		{
+			linksRow.add(linkButton("About the clan", links.getAbout()));
+		}
+		if (links != null && links.getDiscord() != null)
+		{
+			linksRow.add(linkButton("Discord", links.getDiscord()));
+		}
+		linksRow.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, linksRow.getPreferredSize().height));
+		linksRow.setVisible(linksRow.getComponentCount() > 0);
 	}
 
 	private static JButton linkButton(String text, String url)

@@ -21,4 +21,33 @@ public class MeResponse
 	 */
 	@Nullable
 	private Boolean pluginOnboarding;
+	/** Where the panel's buttons go. Null from a server older than the field: no buttons. */
+	@Nullable
+	private Links links;
+
+	@Data
+	public static class Links
+	{
+		/** The clan's public about page, for accounts that are not members. */
+		@Nullable
+		private String about;
+		@Nullable
+		private String dashboard;
+		@Nullable
+		private String discord;
+	}
+
+	/** The clan message of the day; null when there is none, or from an older server. */
+	@Nullable
+	private Motd motd;
+
+	@Data
+	public static class Motd
+	{
+		/** Changes whenever the message does. */
+		private String id;
+		private String message;
+		/** {@code clan} (set by staff) or {@code event} (the SOTW/BOTW line). */
+		private String source;
+	}
 }

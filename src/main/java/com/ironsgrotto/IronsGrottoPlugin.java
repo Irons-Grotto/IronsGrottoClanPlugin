@@ -6,6 +6,7 @@ import com.google.inject.Provides;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
+import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.PluginPolicy;
 import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.ledger.LedgerRecorder;
@@ -21,7 +22,10 @@ import com.ironsgrotto.session.AccountIdentity;
 import com.ironsgrotto.session.AccountSession;
 import com.ironsgrotto.tracker.ChatEventTracker;
 import com.ironsgrotto.tracker.LootEventTracker;
+import com.ironsgrotto.ui.ClanEventOverlay;
+import com.ironsgrotto.ui.CollapsibleSection;
 import com.ironsgrotto.ui.GrottoPanel;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.time.Clock;
@@ -41,6 +45,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -49,12 +54,15 @@ import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.PluginChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootTrackerPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 
 @Slf4j
 @PluginDescriptor(
@@ -69,6 +77,16 @@ public class IronsGrottoPlugin extends Plugin
 	private static final String EVENTS_PATH = GrottoApiClient.API_PREFIX + "/events";
 	private static final long FLUSH_INTERVAL_SECONDS = 5;
 	private static final long REFRESH_CHECK_SECONDS = 30;
+	/**
+	 * The message of the day's text: the blue from the clan logo (the site's
+	 * {@code --ig-tertiary}). The logo's green and teal vanish on the opaque
+	 * chat box and its indigo on the transparent one; this blue reads on both.
+	 */
+	private static final Color MOTD_COLOUR = new Color(0x2F8FE0);
+	/** Standings asked for: enough for the tallest overlay. The panel shows five. */
+	private static final int EVENT_STANDINGS = 25;
+	/** How often the overlay's standings refresh; the server caches Temple for 3 minutes. */
+	private static final long OVERLAY_REFRESH_MS = TimeUnit.MINUTES.toMillis(3);
 
 	@Inject
 	private IronsGrottoConfig config;
@@ -84,6 +102,18 @@ public class IronsGrottoPlugin extends Plugin
 
 	@Inject
 	private ClientToolbar clientToolbar;
+
+	@Inject
+	private ItemManager itemManager;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private ClanEventOverlay eventOverlay;
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
@@ -132,6 +162,9 @@ public class IronsGrottoPlugin extends Plugin
 
 	private volatile PluginPolicy policy = new PluginPolicy();
 	private volatile long lastRefreshAt;
+	private volatile long lastEventsAt;
+	/** The account the message of the day was shown to this login; cleared at logout. */
+	private volatile String motdShownTo;
 	/** Names the site said are registered, this session. */
 	private final Map<String, Registration> registrations = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -145,7 +178,21 @@ public class IronsGrottoPlugin extends Plugin
 	protected void startUp() throws IOException
 	{
 		executor.start();
-		panel = new GrottoPanel(siteUrl());
+		panel = new GrottoPanel(this::siteUrl, itemManager, new CollapsibleSection.Store()
+		{
+			// Hidden config keys, not settings: which panel blocks are folded.
+			@Override
+			public boolean isCollapsed(String id)
+			{
+				return Boolean.TRUE.equals(configManager.getConfiguration(IronsGrottoConfig.GROUP, "collapsed." + id, Boolean.class));
+			}
+
+			@Override
+			public void setCollapsed(String id, boolean collapsed)
+			{
+				configManager.setConfiguration(IronsGrottoConfig.GROUP, "collapsed." + id, collapsed);
+			}
+		});
 		panel.setOnTokenEntered(this::checkToken);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
@@ -156,6 +203,7 @@ public class IronsGrottoPlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+		overlayManager.add(eventOverlay);
 
 		OutboxStore store = new OutboxStore(getPluginDirectory().join("outbox.json"), gson);
 		outbox = new Outbox(this::sendEvents, store, Clock.systemUTC(), this::chat);
@@ -200,6 +248,8 @@ public class IronsGrottoPlugin extends Plugin
 		collectionLogButton.shutDown();
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
+		overlayManager.remove(eventOverlay);
+		eventOverlay.setStatus(null);
 		if (flushTask != null)
 		{
 			flushTask.cancel(false);
@@ -232,6 +282,9 @@ public class IronsGrottoPlugin extends Plugin
 			if (session.clear() && state == GameState.LOGIN_SCREEN)
 			{
 				panel.showLoggedOut();
+				eventOverlay.setStatus(null);
+				// The next login shows the message of the day again.
+				motdShownTo = null;
 			}
 		}
 	}
@@ -255,8 +308,22 @@ public class IronsGrottoPlugin extends Plugin
 		}
 
 
+		if ("showEventOverlay".equals(event.getKey()) && config.showEventOverlay())
+		{
+			AccountIdentity identity = session.getIdentity();
+			if (identity != null && tokens.has(identity))
+			{
+				refreshEvents(identity);
+			}
+		}
+
 		if ("apiBaseUrl".equals(event.getKey()))
 		{
+			// Everything learned from the old server is about the old server.
+			// Requests already read the setting each time; the panel's links
+			// do too. Only these remembered answers need forgetting.
+			registrations.clear();
+			policy = new PluginPolicy();
 			outbox.resume();
 			refresh();
 		}
@@ -310,7 +377,7 @@ public class IronsGrottoPlugin extends Plugin
 		Registration known = registrations.get(rsn);
 		if (known != null)
 		{
-			panel.showTokenSource(rsn, known.sendsToJoin());
+			panel.showTokenSource(rsn, known.sendsToJoin(), known.getLinks());
 			return;
 		}
 
@@ -323,7 +390,7 @@ public class IronsGrottoPlugin extends Plugin
 				{
 					registrations.put(rsn, registration);
 				}
-				panel.showTokenSource(rsn, registration.sendsToJoin());
+				panel.showTokenSource(rsn, registration.sendsToJoin(), registration.getLinks());
 			})
 			.exceptionally(error ->
 			{
@@ -363,13 +430,56 @@ public class IronsGrottoPlugin extends Plugin
 			{
 				policy = me.getPolicy() != null ? me.getPolicy() : new PluginPolicy();
 				panel.showMe(me);
+				showMotdOnce(identity, me.getMotd());
 			})
 			.exceptionally(this::handleRefreshError);
 
-		api.getClanEvents(identity)
-			.thenAccept(events -> panel.showEvents(events))
+		refreshEvents(identity);
+
+		// Non-members get null; an older server 404s. Either way, no section.
+		api.getUpgradePath(identity)
+			.thenAccept(path -> panel.showUpgradePath(path))
 			.exceptionally(error ->
 			{
+				log.debug("Could not load next unlocks", error);
+				panel.showUpgradePath(null);
+				return null;
+			});
+
+		// An older server has no news (404): the section stays hidden.
+		api.getNews(identity)
+			.thenAccept(news -> panel.showNews(news))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load clan news", error);
+				panel.showNews(null);
+				return null;
+			});
+
+		// An older server has no top loots (404): the section stays hidden.
+		api.getTopLoot(identity)
+			.thenAccept(loots -> panel.showTopLoots(loots))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load top loots", error);
+				panel.showTopLoots(null);
+				return null;
+			});
+	}
+
+	/** SOTW/BOTW standings for the panel and the overlay. */
+	private void refreshEvents(AccountIdentity identity)
+	{
+		lastEventsAt = System.currentTimeMillis();
+		api.getClanEvents(identity, EVENT_STANDINGS)
+			.thenAccept(events ->
+			{
+				panel.showEvents(events);
+				eventOverlay.setStatus(events);
+			})
+			.exceptionally(error ->
+			{
+				// The overlay keeps the last standings it had.
 				log.debug("Could not load clan events", error);
 				return null;
 			});
@@ -423,9 +533,18 @@ public class IronsGrottoPlugin extends Plugin
 	private void refreshIfStale()
 	{
 		long intervalMs = TimeUnit.SECONDS.toMillis(Math.max(60, policy.getPanelRefreshSeconds()));
-		if (session.getIdentity() != null && System.currentTimeMillis() - lastRefreshAt >= intervalMs)
+		AccountIdentity identity = session.getIdentity();
+		long now = System.currentTimeMillis();
+		if (identity != null && now - lastRefreshAt >= intervalMs)
 		{
 			refresh();
+		}
+		else if (identity != null && config.showEventOverlay() && tokens.has(identity)
+			&& now - lastEventsAt >= OVERLAY_REFRESH_MS)
+		{
+			// The overlay is on screen while playing, so its standings refresh
+			// more often than the panel's.
+			refreshEvents(identity);
 		}
 	}
 
@@ -474,6 +593,34 @@ public class IronsGrottoPlugin extends Plugin
 			return;
 		}
 		say(message);
+	}
+
+	/**
+	 * The message of the day, once per login per account: the first refresh
+	 * after logging in shows it, a world hop does not. Tags are stripped, so
+	 * whatever the server sends is shown as plain text.
+	 */
+	private void showMotdOnce(AccountIdentity identity, MeResponse.Motd motd)
+	{
+		if (motd == null || motd.getMessage() == null || !config.showMotd()
+			|| identity.getAccountHash().equals(motdShownTo))
+		{
+			return;
+		}
+		motdShownTo = identity.getAccountHash();
+
+		String formatted = new ChatMessageBuilder()
+			.append(ChatColorType.NORMAL)
+			.append("[Irons Grotto] ")
+			// append(Color, text): plain append escapes tags, so a <col> tag
+			// built by hand shows up as text in the chat box.
+			.append(MOTD_COLOUR, Text.removeTags(motd.getMessage()))
+			.build();
+
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage(formatted)
+			.build());
 	}
 
 	/** A chat line the member asked for (a button they pressed), whatever the chat setting. */

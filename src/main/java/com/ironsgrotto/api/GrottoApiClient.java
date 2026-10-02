@@ -4,13 +4,18 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
+import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.Registration;
+import com.ironsgrotto.api.model.TopLoot;
+import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.session.AccountIdentity;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -49,7 +54,7 @@ public class GrottoApiClient
 	 * Sent with every request. The server refuses releases older than its
 	 * minimum with 426, which the plugin shows as "please update".
 	 */
-	public static final String PLUGIN_VERSION = "1.0.0";
+	public static final String PLUGIN_VERSION = "1.1.0";
 
 	private final OkHttpClient http;
 	private final Gson gson;
@@ -138,9 +143,40 @@ public class GrottoApiClient
 	}
 
 
-	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity)
+	/**
+	 * The running SOTW/BOTW and the next one.
+	 *
+	 * @param standings how many standings rows to ask for; a server older than
+	 *                  the parameter ignores it and sends five
+	 */
+	public CompletableFuture<ClanEventStatus> getClanEvents(AccountIdentity identity, int standings)
 	{
-		return getAsync(API_PREFIX + "/clan-events", identity, ClanEventStatus.class, null);
+		return getAsync(API_PREFIX + "/clan-events?standings=" + standings, identity, ClanEventStatus.class, null);
+	}
+
+	/**
+	 * The member's next unlocks. Null data for an account that is not a ranked
+	 * member; a 404 is an older server.
+	 */
+	public CompletableFuture<UpgradePath> getUpgradePath(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/upgrade-path", identity, UpgradePath.class, null);
+	}
+
+	/** The clan's news, newest first. A 404 is an older server. */
+	public CompletableFuture<List<ClanNews>> getNews(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/news", identity, new TypeToken<List<ClanNews>>()
+		{
+		}.getType(), null);
+	}
+
+	/** The clan's most valuable drops in the server's last 24 hours. A 404 is an older server. */
+	public CompletableFuture<List<TopLoot>> getTopLoot(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/top-loot", identity, new TypeToken<List<TopLoot>>()
+		{
+		}.getType(), null);
 	}
 
 	/**
@@ -251,7 +287,14 @@ public class GrottoApiClient
 			throw new ApiException(0, "Invalid server URL: " + config.apiBaseUrl());
 		}
 
-		HttpUrl url = base.newBuilder().encodedPath(path).build();
+		// A path may carry a query ("/clan-events?standings=25").
+		int query = path.indexOf('?');
+		HttpUrl.Builder builder = base.newBuilder().encodedPath(query < 0 ? path : path.substring(0, query));
+		if (query >= 0)
+		{
+			builder.encodedQuery(path.substring(query + 1));
+		}
+		HttpUrl url = builder.build();
 
 		return new Request.Builder()
 			.url(url)

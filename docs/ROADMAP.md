@@ -5,6 +5,60 @@
 > [`DATA_BOUNDARY.md`](DATA_BOUNDARY.md) (who owns what data), [`API.md`](API.md) (contract),
 > [`VALIDATION.md`](VALIDATION.md) (user's in-game checklist).
 
+## M9 Member feedback round 1 → plugin 1.1.0 (user 2026-10-01)
+One plugin release. Branches `mm/feedback-round-1` in both repos. Validation loop (workspace
+`CLAUDE.md`): web change → local server → plugin change → `scripts/dev-client.sh` → user checks
+in game → commit only on a thumbs-up. Side panel follows the approved HTML wireframe.
+Binned: clan home world, SOTW/BOTW XP graph. "Old plugin" = a Discord link only.
+
+| # | Feature | State |
+|---|---|---|
+| 1 | Salvage out of the ledger: server accepts and discards (200, id in `accepted`), plugin never queues | **done**; also its own PR, irons-grotto-1 #130 |
+| 2 | Top loots today: `GET /top-loot`, panel section, click for items | **done** |
+| 2b | Server URL setting applies without a restart | **done** |
+| 3 | NPC loot from `ServerNpcLoot` (below) | **done, needs an in-game check** |
+| 4 | SOTW/BOTW overlay: Alt-drag/resize, rows follow height, `@Alpha` background, `?standings=N` | **done** |
+| 5 | Panel links (own row at the bottom) and collapsible blocks | **done** |
+| 6 | Message of the day: staff-set windows, daily Claude drafts with #staff-chat approval, logo blue in chat | **done**; drafting not run (no key locally) |
+| 7 | Clan news | **done** |
+| 8 | Next unlocks (panel + site profile) | **done** |
+| 9 | Recruitment: public `/about`, pitch + About/Discord for non-members | **done** |
+| 10 | Plugin requests no longer wait on Redis (in-memory per-token limit) | **done** |
+
+Release: plugin **1.1.0**. Backend branch `mm/feedback-round-1` (irons-grotto-1), plugin branch
+`mm/feedback-round-1`. See "Release 1.1.0" below for what is left.
+
+**NPC loot source (decided 2026-10-01).** The Maggot King's loot was never recorded (337 kcs, 0
+loot in prod): it arrives only as `ServerNpcLoot`, which 1.0.0 ignored, while the Loot Tracker's
+re-report of it is NPC-typed and skipped. RuneLite's Loot Tracker now uses `ServerNpcLoot` as its
+**only** NPC source, so the plugin does the same: `ServerNpcLoot` for every NPC (core, no Loot
+Tracker needed), the Loot Tracker only for non-NPC content (raids, clues, Barrows, Wintertodt,
+pickpockets), no `NpcLootReceived` (it would double every ground drop). Pickpocket ticks are
+skipped as the Loot Tracker does. See AGENTS.md. Bingo depends on this being right.
+
+**Release 1.1.0 (in order):**
+1. Backend PR from `mm/feedback-round-1`; merge, deploy. Before or with the deploy: apply migration
+   `0032_clan_motds` on Neon; set `ANTHROPIC_API_KEY` in Vercel; check the repo has the
+   `CRON_SECRET` Actions secret (used by `motd-drafts.yaml`).
+2. After deploy: run "Message of the day drafts" by hand (workflow_dispatch) and check #staff-chat.
+3. Merge #130 (salvage) if not already in, then delete the stored salvage rows (SQL in #130).
+4. Plugin PR from `mm/feedback-round-1`; merge; point `~/plugin-hub-fork` `plugins/irons-grotto`
+   `commit=` at it; open the Hub PR.
+5. Local test data to remove: `delete from players where discord_user_id = 'local-test';` and the
+   synthetic Aceriwyn loot (local DB only).
+
+**Open:**
+- In-game check of #3: a ground-drop NPC is recorded **once**; a Maggot King kill is recorded with
+  its kc; a pickpocket is recorded once, as `PICKPOCKET`.
+- Prod: kcs with no loot under any name for Corrupted Gauntlet (12), Royal Titans (6), TzTok-Jad
+  (3), Hespori (1). Re-check after 1.1.0; the Gauntlet and Fight Caves are reward interfaces
+  (Loot Tracker), the others may be fixed by #3.
+- Prod cleanup, needs the user: delete the 2,652 stored salvage rows; insert the Crimson kisten
+  backfill (Aceriwyn, kc 673, 2026-10-01 15:16:34 UTC; SQL prepared, flag `backfilled`). Both
+  were blocked for Claude by the permission classifier.
+- Local dev: `apps/web/.env.local` is the **production** database. `.env.development.local`
+  (gitignored) points `yarn dev` at local Postgres.
+
 ## Status (session 2026-09-26)
 - **Release readiness (2026-09-26):** backend PR **irons-grotto-1 #119** (`mm/plugin-foundations`,
   pushed, main merged in). Flag gaps closed: plugin sign-up refused with the flag off;
@@ -174,6 +228,10 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-10-01: M9 built and seen in the dev client (all but the open checks in VALIDATION). Workspace
+  `~/grotto_code/CLAUDE.md` added with the validation loop. Found: `apps/web/.env.local` is
+  production (added `.env.development.local`); Maggot King loot never recorded (ServerNpcLoot);
+  an Upstash timeout stalled every plugin request (limit moved in memory).
 - 2026-09-29: Hub review (plugin-hub #17154) asked for file I/O through RuneLite's `Filepath`. The
   outbox now lives in `~/.runelite/plugin-data/irons-grotto/` (old folder moved on first run).
   Branch `mm/filepath-io`. After it merges, point the Hub manifest `commit=` at the new `main`.
