@@ -55,9 +55,11 @@ has that name (case-insensitive, active or not). `pluginOnboarding` is the site'
 `IS_GROTTO_PLUGIN_ENABLED`: whether `/join` has the plugin steps and makes a token. Missing (older
 server) reads as true.
 
-Plugin storage: tokens live per game account in RuneLite's RS-profile config (`TokenStore`),
-looked up by account hash, so a token is never sent for another account (e.g. a friend on the same
-client) and syncs across machines with RuneLite profile sync.
+Plugin storage: tokens live per game account, per machine, in
+`~/.runelite/plugin-data/irons-grotto/tokens.json` (`TokenStore`), looked up by account hash, so a
+token is never sent for another account (e.g. a friend on the same client). Each machine has its
+own token. Up to 1.1.0 they were kept in RuneLite's synced RS-profile config, where a token pasted on one
+machine replaced or wiped another's; a newer plugin copies that old token once and never writes it.
 Status: 400 bad headers/body · 401 token · 403 ownership · 426 plugin too old · 429 rate limit (`Retry-After`) · 5xx.
 
 ## `GET /api/plugin/v1/me`

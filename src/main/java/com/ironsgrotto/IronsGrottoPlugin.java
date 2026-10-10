@@ -194,6 +194,7 @@ public class IronsGrottoPlugin extends Plugin
 			}
 		});
 		panel.setOnTokenEntered(this::checkToken);
+		tokens.open(getPluginDirectory().join("tokens.json"), gson);
 		tokens.setOnCleared(this::tokenRejected);
 		BufferedImage icon = ImageUtil.loadImageResource(getClass(), "panel_icon.png");
 		navButton = NavigationButton.builder()

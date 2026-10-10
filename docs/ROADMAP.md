@@ -79,8 +79,8 @@ skipped as the Loot Tracker does. See AGENTS.md. Bingo depends on this being rig
     1.0.0 until the first Plugin Hub release.
 - **Token model (done):** one token, one game account. Server binds a token to its first account
   and refuses others (`token_account_mismatch`; someone else's account is `account_not_yours`).
-  Plugin keeps tokens per account in RuneLite RS-profile config (`TokenStore`) and deletes the
-  one the server refuses. Paste box is in the side panel. Why: a global token was sent for any
+  Plugin keeps tokens per account, per machine, in `plugin-data/irons-grotto/tokens.json`
+  (`TokenStore`) and drops the one the server refuses. Paste box is in the side panel. Why: a global token was sent for any
   account on the client, so a friend on your machine got linked to your Discord and claimed.
 - **Verified in game** (Aceriwyn + test account "Irons Grotto"): linking, panel, dev-tool events →
   ledger, login progress sync, full collection log sync (814 items), SOTW/BOTW + top 5.
@@ -215,8 +215,9 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - No manual sync; progress once per session is enough except standing-changing events.
 - Collection log uploads stay full-list (server filters); client-side diffing only matters at
   Temple's scale.
-- One token per game account (server-bound on first use, stored per account in RS-profile config).
-  Tokens stay hash-only on the server; a new machine without RuneLite sync gets a new token.
+- One token per game account (server-bound on first use), stored per machine (user 2026-10-10):
+  RS-profile config synced between machines, so pasting a token on one machine wiped the other's.
+  Tokens stay hash-only on the server; each machine gets its own token (up to 10 live per member).
 - Copy: terse, no em dashes, status only when actionable (see memory `copy-style`).
 - Check existing primitives in irons-grotto-1 before building new mechanisms.
 
@@ -228,6 +229,10 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-10-10: 1.1.1. Tokens per machine (`plugin-data/irons-grotto/tokens.json`), not synced
+  RS-profile config: pasting a token on the Mac wiped the PC's. Old synced tokens are copied once
+  and never written. Branch `mm/machine-local-tokens`; not run in the client (user's call: no
+  synced writes left, nothing visible to see).
 - 2026-10-01: M9 built and seen in the dev client (all but the open checks in VALIDATION). Workspace
   `~/grotto_code/CLAUDE.md` added with the validation loop. Found: `apps/web/.env.local` is
   production (added `.env.development.local`); Maggot King loot never recorded (ServerNpcLoot);

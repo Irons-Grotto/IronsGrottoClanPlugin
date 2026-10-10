@@ -44,6 +44,9 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   Tracking keep their per-account data here.
 - Per-account values do not appear in the settings panel. Collect them in the side panel.
 - Nothing forces sync. Many members don't sign in to RuneLite, so design for local-only storage.
+- **Secrets and per-machine state don't go in synced config.** Up to 1.1.0 the plugin kept plugin tokens in
+  per-account config: a token pasted on one machine replaced, or wiped, the other machine's
+  (2026-10-10). Tokens now live in `plugin-data/irons-grotto/tokens.json` (`api/TokenStore`).
 - When inspecting someone's `profiles2`, print **key names only**. Values include secrets.
 
 ## RuneLite: game state and events

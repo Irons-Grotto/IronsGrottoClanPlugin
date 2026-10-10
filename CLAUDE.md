@@ -14,7 +14,7 @@ pitfalls); read it before touching those areas and add to it when you learn some
   - `IronsGrottoPlugin` / `IronsGrottoConfig` — wiring and settings.
   - `session/` — which account is logged in; excluded world types.
   - `api/` — `GrottoApiClient` (the only network code; `API_PREFIX`, `PLUGIN_VERSION`),
-    `TokenStore` (one token per game account, RS-profile config), DTOs.
+    `TokenStore` (one token per game account, per machine, in `plugin-data`), DTOs.
   - `outbox/` — durable, batched queue for ledger events.
   - `ledger/`, `tracker/` — event ledger: chat/loot trackers, kill↔loot linking.
   - `progress/` — account progress sync (skills, clog, CAs, diaries, quests, clues).
