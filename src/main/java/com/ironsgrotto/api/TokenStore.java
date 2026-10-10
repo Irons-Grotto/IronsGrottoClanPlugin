@@ -60,7 +60,8 @@ public class TokenStore
 	private final Map<String, String> tokens = new HashMap<>();
 	@Nullable
 	private Filepath file;
-	private Gson gson = new Gson();
+	@Nullable
+	private Gson gson;
 	private boolean loaded;
 
 	@Inject
@@ -175,7 +176,7 @@ public class TokenStore
 		}
 		loaded = true;
 
-		if (file == null || !file.exists())
+		if (file == null || gson == null || !file.exists())
 		{
 			return;
 		}
@@ -197,7 +198,7 @@ public class TokenStore
 	/** Written to a temp file and moved into place, like the outbox. */
 	private void save()
 	{
-		if (file == null)
+		if (file == null || gson == null)
 		{
 			return;
 		}
