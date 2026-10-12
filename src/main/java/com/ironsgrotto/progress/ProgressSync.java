@@ -9,7 +9,10 @@ import com.ironsgrotto.tracker.ChatMessageParser;
 import com.ironsgrotto.SyncExecutor;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -79,7 +82,21 @@ public class ProgressSync
 	/** The latest cheap reading, for logout; null until the first one. */
 	private JsonObject lastReading;
 
-	private String pendingClogItem;
+	/**
+	 * The game's "recently obtained" list, newest first. Two new slots in one
+	 * tick (a raid drop and a pet) push the first one down to the second varp.
+	 */
+	private static final int[] CLOG_LAST_ITEM_VARPS = {
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM0, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM1,
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM2, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM3,
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM4, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM5,
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM6, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM7,
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM8, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM9,
+		VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM10, VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM11,
+	};
+
+	/** Names from "New item added to your collection log" not yet sent. */
+	private final List<String> pendingClogItems = new ArrayList<>();
 	private int pendingClogTicks;
 
 	@Inject
@@ -219,7 +236,7 @@ public class ProgressSync
 
 		ChatMessageParser.collectionLogItem(message).ifPresent(item ->
 		{
-			pendingClogItem = item;
+			pendingClogItems.add(item);
 			pendingClogTicks = 0;
 			resolvePendingClogItem(current);
 		});
@@ -231,22 +248,27 @@ public class ProgressSync
 	}
 
 	/**
-	 * A new collection log slot, with its item id: the game's "last obtained"
-	 * varp names the item, and is checked against the chat message's name so
-	 * a stale value is never sent as the new one.
+	 * New collection log slots, with their item ids: the game's "recently
+	 * obtained" varps name the items, and are checked against the chat
+	 * messages' names so a stale value is never sent as a new one. Every slot
+	 * from the same moment goes in one upload.
 	 */
 	private void resolvePendingClogItem(AccountIdentity current)
 	{
-		if (pendingClogItem == null)
+		if (pendingClogItems.isEmpty())
 		{
 			return;
 		}
 
-		int itemId = client.getVarpValue(VarPlayerID.COLLECTION_OVERVIEW_LAST_ITEM0);
-		boolean matches = itemId > 0
-			&& pendingClogItem.equalsIgnoreCase(itemManager.getItemComposition(itemId).getMembersName());
+		int[] recentIds = new int[CLOG_LAST_ITEM_VARPS.length];
+		for (int i = 0; i < recentIds.length; i++)
+		{
+			recentIds[i] = client.getVarpValue(CLOG_LAST_ITEM_VARPS[i]);
+		}
+		Map<String, Integer> matched = matchClogItems(pendingClogItems, recentIds,
+			id -> itemManager.getItemComposition(id).getMembersName());
 
-		if (!matches && ++pendingClogTicks < CLOG_ITEM_WAIT_TICKS)
+		if (matched.size() < pendingClogItems.size() && ++pendingClogTicks < CLOG_ITEM_WAIT_TICKS)
 		{
 			return;
 		}
@@ -256,14 +278,17 @@ public class ProgressSync
 		{
 			log = new JsonObject();
 		}
-		if (matches)
+		if (!matched.isEmpty())
 		{
-			JsonObject item = new JsonObject();
-			item.addProperty("id", itemId);
-			item.addProperty("name", pendingClogItem);
-			item.addProperty("quantity", 1);
 			JsonArray items = new JsonArray();
-			items.add(item);
+			matched.forEach((name, id) ->
+			{
+				JsonObject item = new JsonObject();
+				item.addProperty("id", id);
+				item.addProperty("name", name);
+				item.addProperty("quantity", 1);
+				items.add(item);
+			});
 			log.add("items", items);
 		}
 		// Unmatched: the counters still move; the item itself arrives with the
@@ -272,7 +297,31 @@ public class ProgressSync
 		{
 			uploader.submit(current, "collectionLog", log);
 		}
-		pendingClogItem = null;
+		pendingClogItems.clear();
+	}
+
+	/**
+	 * Pairs each chat-message name with a distinct id from the recently
+	 * obtained list (by item name, ignoring case). Names with no match are
+	 * left out; the result keeps the names' order.
+	 */
+	static Map<String, Integer> matchClogItems(List<String> names, int[] recentIds, IntFunction<String> nameOf)
+	{
+		Map<String, Integer> matched = new LinkedHashMap<>();
+		boolean[] used = new boolean[recentIds.length];
+		for (String name : names)
+		{
+			for (int i = 0; i < recentIds.length; i++)
+			{
+				if (!used[i] && recentIds[i] > 0 && name.equalsIgnoreCase(nameOf.apply(recentIds[i])))
+				{
+					used[i] = true;
+					matched.put(name, recentIds[i]);
+					break;
+				}
+			}
+		}
+		return matched;
 	}
 
 	private void submitCounters(AccountIdentity current)
