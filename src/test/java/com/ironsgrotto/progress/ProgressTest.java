@@ -8,7 +8,10 @@ import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.session.AccountIdentity;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -124,6 +127,56 @@ public class ProgressTest
 		JsonObject log = api.sent.get(0).getAsJsonObject("collectionLog");
 		assertTrue(log.get("complete").getAsBoolean());
 		assertEquals(500, log.get("obtained").getAsInt());
+	}
+
+	@Test
+	public void keepsEveryNewCollectionLogItemQueuedBeforeAnUpload()
+	{
+		RecordingApi api = new RecordingApi();
+		ProgressUploader uploader = new ProgressUploader(api, Clock.systemUTC());
+
+		uploader.submit(ACCOUNT, "collectionLog", newItems(20851));
+		uploader.submit(ACCOUNT, "collectionLog", newItems(21034, 20851));
+		uploader.flush();
+
+		JsonArray items = api.sent.get(0).getAsJsonObject("collectionLog").getAsJsonArray("items");
+		assertEquals(2, items.size());
+		assertEquals(20851, items.get(0).getAsJsonObject().get("id").getAsInt());
+		assertEquals(21034, items.get(1).getAsJsonObject().get("id").getAsInt());
+	}
+
+	@Test
+	public void matchesSameTickCollectionLogItemsDownTheRecentList()
+	{
+		// Olmlet then the scroll in one tick: the scroll is newest, the Olmlet one slot down.
+		Map<Integer, String> names = new HashMap<>();
+		names.put(21034, "Dexterous prayer scroll");
+		names.put(20851, "Olmlet");
+		names.put(4151, "Abyssal whip");
+		int[] recent = {21034, 20851, 4151, 0};
+
+		Map<String, Integer> matched = ProgressSync.matchClogItems(
+			Arrays.asList("Olmlet", "Dexterous prayer scroll"), recent, names::get);
+		assertEquals(Integer.valueOf(20851), matched.get("Olmlet"));
+		assertEquals(Integer.valueOf(21034), matched.get("Dexterous prayer scroll"));
+
+		// A name the varps don't hold yet is left for the next tick.
+		assertTrue(ProgressSync.matchClogItems(Arrays.asList("Twisted bow"), recent, names::get).isEmpty());
+	}
+
+	private static JsonObject newItems(int... ids)
+	{
+		JsonArray items = new JsonArray();
+		for (int id : ids)
+		{
+			JsonObject item = new JsonObject();
+			item.addProperty("id", id);
+			item.addProperty("quantity", 1);
+			items.add(item);
+		}
+		JsonObject log = new JsonObject();
+		log.add("items", items);
+		return log;
 	}
 
 	@Test

@@ -1,5 +1,6 @@
 package com.ironsgrotto.progress;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.ironsgrotto.api.ApiException;
@@ -7,8 +8,10 @@ import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.session.AccountIdentity;
 import java.time.Clock;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.inject.Inject;
@@ -102,6 +105,14 @@ public class ProgressUploader
 			{
 				merged.add(field.getKey(), field.getValue());
 			}
+			// Two item lists both belong too: a new slot found before the last
+			// one was sent must not replace it.
+			JsonElement queuedItems = queued.get(category).getAsJsonObject().get("items");
+			JsonElement newItems = value.getAsJsonObject().get("items");
+			if (queuedItems != null && queuedItems.isJsonArray() && newItems != null && newItems.isJsonArray())
+			{
+				merged.add("items", mergeItems(queuedItems.getAsJsonArray(), newItems.getAsJsonArray()));
+			}
 			value = merged;
 		}
 
@@ -109,6 +120,25 @@ public class ProgressUploader
 		part.add(category, value);
 		pending.put(category, part);
 		return true;
+	}
+
+	/** Both lists' items, each id once (the server upserts by id, one row per statement). */
+	static JsonArray mergeItems(JsonArray queued, JsonArray added)
+	{
+		JsonArray merged = queued.deepCopy();
+		Set<JsonElement> ids = new HashSet<>();
+		for (JsonElement item : queued)
+		{
+			ids.add(item.getAsJsonObject().get("id"));
+		}
+		for (JsonElement item : added)
+		{
+			if (ids.add(item.getAsJsonObject().get("id")))
+			{
+				merged.add(item);
+			}
+		}
+		return merged;
 	}
 
 	/** Sends everything waiting, in one request. Blocking; background threads only. */
