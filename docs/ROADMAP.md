@@ -229,6 +229,10 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-10-11: 1.1.2. Two new collection log slots in one tick (raid drop + pet) are both sent as
+  new items: pending names are a list matched against all 12 recent-item varps, and the uploader
+  appends queued item lists. Seen live with Guilloteems' Olmlet (stored backfilled, hidden from
+  the feeds). PR #12; not run in the client (user's call).
 - 2026-10-10: 1.1.1. Tokens per machine (`plugin-data/irons-grotto/tokens.json`), not synced
   RS-profile config: pasting a token on the Mac wiped the PC's. Old synced tokens are copied once
   and never written. Branch `mm/machine-local-tokens`; not run in the client (user's call: no
