@@ -31,4 +31,4 @@ collection log items. Raid, clue and other non-NPC loot needs RuneLite's Loot Tr
   `java -ea -jar build/libs/irons-grotto-<version>-all.jar --developer-mode`.
 - Local backend: plugin settings, Advanced, Server URL. `node scripts/dev-relay.mjs` serves the
   HTTPS dev server over plain HTTP for it.
-- Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md). API contract: [`docs/API.md`](docs/API.md).
+- API contract: [`docs/API.md`](docs/API.md).

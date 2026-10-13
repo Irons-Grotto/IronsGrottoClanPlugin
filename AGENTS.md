@@ -6,13 +6,10 @@ something a future session would otherwise rediscover.
 
 ## Orientation
 - Two repos, one feature set. The plugin (this repo, Java 11) and the clan site's backend
-  (`~/irons-grotto-1/apps/web`, Next.js + Drizzle/Postgres). They talk over `/api/plugin/v1`;
+  (`~/grotto_code/irons-grotto-1/apps/web`, Next.js + Drizzle/Postgres). They talk over `/api/plugin/v1`;
   [`docs/API.md`](docs/API.md) is the contract. Change both sides together.
-- Status and next steps: [`docs/ROADMAP.md`](docs/ROADMAP.md). Data ownership between plugin,
-  TempleOSRS and WikiSync: [`docs/DATA_BOUNDARY.md`](docs/DATA_BOUNDARY.md). The owner's in-game
+- Data ownership between plugin, TempleOSRS and WikiSync: [`docs/DATA_BOUNDARY.md`](docs/DATA_BOUNDARY.md). The owner's in-game
   checklist: [`docs/VALIDATION.md`](docs/VALIDATION.md).
-- The backend work lives in a git worktree, `~/irons-grotto-1/.claude/worktrees/plugin-api`,
-  not the main checkout.
 
 ## Invariants
 - **A token speaks for exactly one game account.** The server binds a token to the first account
@@ -117,7 +114,13 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   something new means updating it in the same release.
 
 ## Local development
-- Setup (Docker Postgres, backend dev server, dev relay, dev jar): ROADMAP "Local test setup".
+- Setup (Docker Postgres, backend dev server, dev relay, dev jar): "Local loop" in
+  `~/grotto_code/CLAUDE.md`.
+- Backend scripts: scoring needs the Next runtime (a standalone `tsx` script can't call
+  `scoreStoredPlayer`). DB-only scripts run with
+  `npx tsx --conditions=react-server --tsconfig tsconfig.json`.
+- Known gap: after an in-game rename, Temple refreshes fail for the old name until the member
+  renames on the site, and nothing prompts them.
 - **Never rebuild the jar a running client is using.** `scripts/dev-client.sh` stops the dev
   client, rebuilds `build/libs/irons-grotto-dev.jar` and starts it again; use it rather than
   doing the steps by hand.

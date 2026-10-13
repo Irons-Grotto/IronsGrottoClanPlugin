@@ -3,8 +3,8 @@
 The Irons Grotto **RuneLite plugin** (Java 11, Gradle, Plugin Hub layout). It talks to the clan
 website's backend in `~/grotto_code/irons-grotto-1/apps/web` (Next.js) over a versioned API.
 
-**Start every session with [`docs/ROADMAP.md`](docs/ROADMAP.md)** — current status, next step,
-local test setup and decisions. Update it at the end of every session and when an item completes.
+Workspace rules, the local loop and what exists now: `~/grotto_code/CLAUDE.md`. Status lives in
+git and the PRs, not in a doc.
 The plugin ↔ backend contract is [`docs/API.md`](docs/API.md); change both sides together.
 [`AGENTS.md`](AGENTS.md) holds working knowledge (RuneLite storage, game state, threads, local dev
 pitfalls); read it before touching those areas and add to it when you learn something.
@@ -29,6 +29,14 @@ pitfalls); read it before touching those areas and add to it when you learn some
   keeps everything; only a request the server calls malformed is dropped.
 - Everything the ledger records is what the game said — no event-specific logic in the plugin.
   Event rules (bingo etc.) live on the server (`lib/ledger/ledger-rules.ts`).
+- Decisions (user):
+  - The ledger is for event arbitration, read by the system. It isn't member-facing and has no
+    staff pane; members see its effects through existing feeds (recent clogs, accomplishments).
+  - No screenshots until bingo: they're a bingo-only feature, designed when the plugin supports it.
+  - No manual sync button: progress syncs once per session, plus on events that change standing.
+  - Collection log uploads stay full-list (the server filters); client-side diffing isn't worth it.
+  - One token per game account, bound on first use and stored per machine (`tokens.json` in
+    `plugin-data`), not in synced RS-profile config: pasting on one machine wiped the other's.
 - Build and test: `./gradlew build`. Run with the plugin: `./gradlew shadowJar` then
   `java -ea -jar build/libs/irons-grotto-<version>-all.jar --developer-mode`.
 
