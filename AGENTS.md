@@ -6,7 +6,7 @@ something a future session would otherwise rediscover.
 
 ## Orientation
 - Two repos, one feature set. The plugin (this repo, Java 11) and the clan site's backend
-  (`~/grotto_code/irons-grotto-1/apps/web`, Next.js + Drizzle/Postgres). They talk over `/api/plugin/v1`;
+  (`apps/web` in the `irons-grotto-1` repo, Next.js + Drizzle/Postgres). They talk over `/api/plugin/v1`;
   [`docs/API.md`](docs/API.md) is the contract. Change both sides together.
 - Data ownership between plugin, TempleOSRS and WikiSync: [`docs/DATA_BOUNDARY.md`](docs/DATA_BOUNDARY.md). The owner's in-game
   checklist: [`docs/VALIDATION.md`](docs/VALIDATION.md).
@@ -114,8 +114,8 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   something new means updating it in the same release.
 
 ## Local development
-- Setup (Docker Postgres, backend dev server, dev relay, dev jar): "Local loop" in
-  `~/grotto_code/CLAUDE.md`.
+- Setup: Postgres 16 in Docker (`grotto`/`grotto`, :5432), then `yarn dev` in the backend's
+  `apps/web` (https://localhost:3000), the dev relay and `scripts/dev-client.sh` (below).
 - Backend scripts: scoring needs the Next runtime (a standalone `tsx` script can't call
   `scoreStoredPlayer`). DB-only scripts run with
   `npx tsx --conditions=react-server --tsconfig tsconfig.json`.

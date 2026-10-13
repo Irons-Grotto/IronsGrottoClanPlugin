@@ -1,10 +1,9 @@
 # CLAUDE.md
 
 The Irons Grotto **RuneLite plugin** (Java 11, Gradle, Plugin Hub layout). It talks to the clan
-website's backend in `~/grotto_code/irons-grotto-1/apps/web` (Next.js) over a versioned API.
+website's backend in `apps/web` of the `irons-grotto-1` repo (Next.js) over a versioned API.
 
-Workspace rules, the local loop and what exists now: `~/grotto_code/CLAUDE.md`. Status lives in
-git and the PRs, not in a doc.
+Status lives in git and the PRs, not in a doc.
 The plugin ↔ backend contract is [`docs/API.md`](docs/API.md); change both sides together.
 [`AGENTS.md`](AGENTS.md) holds working knowledge (RuneLite storage, game state, threads, local dev
 pitfalls); read it before touching those areas and add to it when you learn something.
@@ -41,7 +40,7 @@ pitfalls); read it before touching those areas and add to it when you learn some
   `java -ea -jar build/libs/irons-grotto-<version>-all.jar --developer-mode`.
 
 ## Shipping a change
-Anything a member can see goes through the validation loop in `~/grotto_code/CLAUDE.md` first
+Anything a member can see goes through the validation loop first
 (web change → local server → plugin change → `scripts/dev-client.sh` → the user checks it in game
 → commit). Never commit a member-facing change the user has not seen working.
 
