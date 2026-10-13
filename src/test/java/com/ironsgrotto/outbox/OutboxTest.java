@@ -19,6 +19,7 @@ import net.runelite.client.util.Filepath;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class OutboxTest
@@ -136,13 +137,43 @@ public class OutboxTest
 		clock.advance(Outbox.MAX_BACKOFF_MS);
 		outbox.flush();
 
-		assertTrue(outbox.isPaused());
+		assertTrue(outbox.isPaused(MAIN));
 		assertEquals(1, outbox.size());
 
 		outbox.resume();
 		outbox.flush();
 
 		assertEquals(0, outbox.size());
+	}
+
+	@Test
+	public void aPausedAccountDoesNotHoldUpOthers()
+	{
+		Outbox outbox = new Outbox((account, batch) ->
+		{
+			if (account.equals(ALT))
+			{
+				throw new ApiException(401, "No plugin token set");
+			}
+			return send(account, batch);
+		}, new OutboxStore(file, gson), clock, messages::add);
+		outbox.enqueue(entry(ALT));
+		outbox.enqueue(entry(MAIN));
+		outbox.enqueue(entry(MAIN));
+
+		outbox.flush();
+		outbox.flush();
+
+		assertTrue(outbox.isPaused(ALT));
+		assertFalse(outbox.isPaused(MAIN));
+		assertEquals(1, sent.size());
+		assertEquals(2, sent.get(0).size());
+		assertEquals(1, outbox.size());
+		assertEquals(ALT, outbox.peekAll().get(0).getAccount());
+
+		// Nothing left that may be sent: no request at all.
+		outbox.flush();
+		assertEquals(1, sent.size());
 	}
 
 	@Test
@@ -154,7 +185,7 @@ public class OutboxTest
 
 		outbox.flush();
 
-		assertTrue(outbox.isPaused());
+		assertTrue(outbox.isPaused(MAIN));
 		assertEquals(1, outbox.size());
 	}
 
