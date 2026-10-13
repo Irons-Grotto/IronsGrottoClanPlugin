@@ -13,7 +13,7 @@
   The one exception is `/api/plugin/v1/public/**`: no auth at all, public data only, rate limited
   per address.
 
-Backend lives in `~/grotto_code/irons-grotto-1/apps/web/app/api/plugin/v1/` (shared helpers in `../utils/`). Keep this file in sync with both
+Backend lives in `apps/web/app/api/plugin/v1/` in the `irons-grotto-1` repo (shared helpers in `../utils/`). Keep this file in sync with both
 sides; the plugin's DTOs are in `src/main/java/com/ironsgrotto/api/model/`.
 
 ## Auth (every request)
