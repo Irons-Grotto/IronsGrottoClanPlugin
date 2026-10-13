@@ -19,8 +19,10 @@ import lombok.extern.slf4j.Slf4j;
  * Events are appended as they happen and sent in batches by {@link #flush()},
  * which the plugin calls on a background schedule. Nothing is dropped for a
  * transient failure: network errors, rate limits and server errors back off
- * and retry. A bad token or an outdated plugin pauses sending until
- * {@link #resume()} — on the next start after an update, or a token change.
+ * and retry. A bad token or an outdated plugin pauses sending for that
+ * account until {@link #resume()} — on the next start after an update, or a
+ * token change. Other accounts' events keep going: an alt with no token must
+ * not hold up the main's.
  */
 @Slf4j
 public class Outbox
@@ -57,7 +59,8 @@ public class Outbox
 
 	private long nextAttemptAt;
 	private long backoffMs = INITIAL_BACKOFF_MS;
-	private boolean paused;
+	/** Account hashes whose events wait for the member to fix something. */
+	private final Set<String> paused = new HashSet<>();
 
 	public Outbox(Sender sender, OutboxStore store, Clock clock, Consumer<String> messageSink)
 	{
@@ -87,15 +90,15 @@ public class Outbox
 		return entries.size();
 	}
 
-	public synchronized boolean isPaused()
+	public synchronized boolean isPaused(AccountIdentity account)
 	{
-		return paused;
+		return paused.contains(account.getAccountHash());
 	}
 
 	/** Clears a pause or backoff, e.g. after the token is changed. */
 	public synchronized void resume()
 	{
-		paused = false;
+		paused.clear();
 		nextAttemptAt = 0;
 		backoffMs = INITIAL_BACKOFF_MS;
 	}
@@ -111,17 +114,22 @@ public class Outbox
 
 		synchronized (this)
 		{
-			if (paused || entries.isEmpty() || clock.millis() < nextAttemptAt)
+			if (clock.millis() < nextAttemptAt)
 			{
 				return;
 			}
 
 			// One account per request: the headers name the account, and the
-			// server checks every event against them.
-			account = entries.get(0).getAccount();
+			// server checks every event against them. The oldest account that
+			// isn't paused goes first.
+			account = null;
 			batch = new ArrayList<>();
 			for (OutboxEntry entry : entries)
 			{
+				if (account == null && !paused.contains(entry.getAccount().getAccountHash()))
+				{
+					account = entry.getAccount();
+				}
 				if (entry.getAccount().equals(account))
 				{
 					batch.add(entry);
@@ -130,6 +138,11 @@ public class Outbox
 						break;
 					}
 				}
+			}
+
+			if (account == null)
+			{
+				return;
 			}
 		}
 
@@ -140,7 +153,7 @@ public class Outbox
 		}
 		catch (ApiException e)
 		{
-			handleFailure(e, batch);
+			handleFailure(e, account, batch);
 			return;
 		}
 
@@ -159,7 +172,7 @@ public class Outbox
 		result.getMessages().forEach(messageSink);
 	}
 
-	private synchronized void handleFailure(ApiException e, List<OutboxEntry> batch)
+	private synchronized void handleFailure(ApiException e, AccountIdentity account, List<OutboxEntry> batch)
 	{
 		if (e.isRetryable())
 		{
@@ -173,8 +186,8 @@ public class Outbox
 		{
 			// Not the events' fault: the token, the account link or the plugin
 			// version is wrong. Keep them and wait for the member to fix it.
-			log.warn("Outbox paused: {}", e.getMessage());
-			paused = true;
+			log.warn("Outbox paused for {}: {}", account.getRsn(), e.getMessage());
+			paused.add(account.getAccountHash());
 			return;
 		}
 

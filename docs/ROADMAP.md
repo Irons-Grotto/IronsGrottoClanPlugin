@@ -229,6 +229,10 @@ See [`PLUGIN_HUB.md`](PLUGIN_HUB.md) (manifest with the data `warning`, release 
 - 10 pre-existing failing test suites on `origin/main` (398 tests), unrelated.
 
 ## Session log
+- 2026-10-12: 1.1.3. A member had 2,200 events stuck with no errors anywhere: an alt with no
+  token sat at the head of the outbox, its 401 (thrown locally, no request) paused the whole
+  outbox, and nothing ever resumed it. The pause is now per account hash; other accounts keep
+  sending. Branch `mm/outbox-account-pause`; unit-tested, not run in the client (user's call).
 - 2026-10-10: 1.1.1. Tokens per machine (`plugin-data/irons-grotto/tokens.json`), not synced
   RS-profile config: pasting a token on the Mac wiped the PC's. Old synced tokens are copied once
   and never written. Branch `mm/machine-local-tokens`; not run in the client (user's call: no
