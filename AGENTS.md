@@ -53,6 +53,10 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   `normaliseRsn` on the server).
 - Varbits and varps arrive a few ticks after login. Progress is first read at tick 8
   (`ProgressSync.FIRST_READ_TICK`).
+- A world hop or reconnect clears the varbits to 0 and resends them, without passing the login
+  screen. `ProgressSync` restarts its tick count on `HOPPING` / `CONNECTION_LOST` / `LOGGING_IN`
+  (`ProgressRules.resetsVarbits`), so no reading or varbit listener sees the zeros. 1.1.3 didn't,
+  and sent every hopping ironman as a main.
 - Game state is gone by the time `LOGIN_SCREEN` fires. Anything sent at logout has to come from a
   reading taken earlier (`ProgressSync` caches one every ~100 ticks).
 - `ClientShutdown.waitFor(future)` holds exit briefly for a final flush.

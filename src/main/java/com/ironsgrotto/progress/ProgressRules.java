@@ -1,5 +1,7 @@
 package com.ironsgrotto.progress;
 
+import net.runelite.api.GameState;
+
 /** The pure decisions behind the progress sync, kept apart so they are tested. */
 public final class ProgressRules
 {
@@ -22,6 +24,16 @@ public final class ProgressRules
 	public static String accountType(int varbitValue)
 	{
 		return varbitValue >= 0 && varbitValue < ACCOUNT_TYPES.length ? ACCOUNT_TYPES[varbitValue] : null;
+	}
+
+	/**
+	 * Whether this game state clears the varbits mid-session. A world hop or a
+	 * reconnect resets them to 0 before the server resends them, as at login,
+	 * so readings wait for the varbits to settle again.
+	 */
+	public static boolean resetsVarbits(GameState state)
+	{
+		return state == GameState.HOPPING || state == GameState.CONNECTION_LOST || state == GameState.LOGGING_IN;
 	}
 
 	/** Highest diary tier whose completion varbit is set, or "None". */

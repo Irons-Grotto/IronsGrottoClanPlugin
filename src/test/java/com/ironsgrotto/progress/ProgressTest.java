@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.runelite.api.GameState;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -82,6 +83,17 @@ public class ProgressTest
 		assertEquals("hardcore_group_ironman", ProgressRules.accountType(5));
 		assertEquals("unranked_group_ironman", ProgressRules.accountType(6));
 		assertNull(ProgressRules.accountType(7));
+	}
+
+	@Test
+	public void hoppingAndReconnectingWaitForTheVarbitsAgain()
+	{
+		assertTrue(ProgressRules.resetsVarbits(GameState.HOPPING));
+		assertTrue(ProgressRules.resetsVarbits(GameState.CONNECTION_LOST));
+		assertTrue(ProgressRules.resetsVarbits(GameState.LOGGING_IN));
+		assertFalse(ProgressRules.resetsVarbits(GameState.LOGGED_IN));
+		// Every teleport has a loading screen, and the varbits survive it.
+		assertFalse(ProgressRules.resetsVarbits(GameState.LOADING));
 	}
 
 	@Test
