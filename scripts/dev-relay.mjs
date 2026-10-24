@@ -11,15 +11,17 @@
 // Origin (:3001) is not the host (:3000).
 //
 //   node scripts/dev-relay.mjs
+//   RELAY_PORT=3003 UPSTREAM_PORT=3002 node scripts/dev-relay.mjs   (a second dev server)
 import http from 'node:http';
 import https from 'node:https';
 
 const port = Number(process.env.RELAY_PORT ?? 3001);
+const upstreamPort = Number(process.env.UPSTREAM_PORT ?? 3000);
 
 http
   .createServer((req, res) => {
     if (!req.url?.startsWith('/api/plugin/')) {
-      res.writeHead(307, { location: `https://localhost:3000${req.url ?? '/'}` });
+      res.writeHead(307, { location: `https://localhost:${upstreamPort}${req.url ?? '/'}` });
       res.end();
       return;
     }
@@ -27,10 +29,10 @@ http
     const upstream = https.request(
       {
         host: 'localhost',
-        port: 3000,
+        port: upstreamPort,
         path: req.url,
         method: req.method,
-        headers: { ...req.headers, host: 'localhost:3000' },
+        headers: { ...req.headers, host: `localhost:${upstreamPort}` },
         rejectUnauthorized: false,
       },
       (up) => {
@@ -46,5 +48,5 @@ http
     console.log(new Date().toISOString(), req.method, req.url);
   })
   .listen(port, () =>
-    console.log(`relay on http://localhost:${port} → https://localhost:3000`),
+    console.log(`relay on http://localhost:${port} → https://localhost:${upstreamPort}`),
   );

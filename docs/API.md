@@ -172,11 +172,14 @@ Any subset of (schema: `apps/web/app/schemas/plugin-progress.ts`):
   "settings": { "collectionLogChat": true, "lootTracker": true },
   "accountType": "main|ironman|ultimate_ironman|hardcore_ironman|group_ironman|hardcore_group_ironman|unranked_group_ironman" }
 ```
-`accountType` is the game mode from the game's ironman varbit (1777), sent with the login reading
-and when it changes. Stored as the `account_type` snapshot. For a member it overwrites
-`players.account_type` (not upwards-only: a hardcore dies, an ironman de-irons; a group name is kept
-while the mode stays a group mode) and is marked source `plugin` under `account_type`, so the
-Temple refresh leaves it alone for 30 days. On the plugin branch of `/join` it settles the game mode
+`accountType` is the game mode from the game's ironman varbit (1777), sent with the login and
+logout readings (from 1.1.4; earlier clients also sent it whenever the varbit changed, which
+includes the 0 it reads for a moment on a world hop). Stored as the `account_type` snapshot. For a
+member it is applied once confirmed: an unresolved mode is filled in at once, but a change is held
+as pending and applied only when a reading at least a day later agrees, so a glitch is cleared by
+the true reading that follows it. It is not upwards-only (a hardcore dies, an ironman de-irons; a
+group name is kept while the mode stays a group mode) and is marked source `plugin` under
+`account_type`, so the Temple refresh leaves it alone for 30 days. On the plugin branch of `/join` it settles the game mode
 without asking the member.
 `settings` is not progress: the client settings tracking depends on (the game's new collection log
 item chat message; RuneLite's Loot Tracker plugin). Stored as the account's `settings` snapshot for
