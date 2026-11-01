@@ -109,6 +109,17 @@ newest first. A win by someone who has left is skipped, not blanked. `data`:
 is XP for a skill week and kills for a boss week. `metricShortName` is what members call the skill
 or boss (`RC`, `PNM`), or `metricName` when it has no abbreviation; older servers leave it out.
 
+## `GET /api/plugin/v1/broadcasts?seen=ISO`
+Checked every `policy.broadcastPollSeconds` (`/me`, 60 by default). `data` is `{ message, sendsAt,
+eventEndsAt|null }` or null, and only ever the newest broadcast that is due and unexpired, so a
+member back after two weeks gets one line. `seen` is the `sendsAt` of the last one shown; the server
+keeps it as the account's cursor, which is the only record of views. `{end}` in `message` is
+`eventEndsAt`, for the plugin to fill in with the member's own time.
+
+## `GET /api/plugin/v1/calendar`
+What `!events` shows: at most four entries, soonest first. `data`: `[{ title, status:
+live|upcoming|expected, startsAt, endsAt }]`. `expected` is a SOTW or BOTW week nobody has booked yet.
+
 ## `POST /api/plugin/v1/events`
 Request (≤ 50 events, all for the header account):
 ```json

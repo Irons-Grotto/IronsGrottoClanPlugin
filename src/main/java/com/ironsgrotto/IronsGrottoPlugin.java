@@ -6,6 +6,8 @@ import com.google.inject.Provides;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
+import com.ironsgrotto.chat.BroadcastPoller;
+import com.ironsgrotto.chat.EventsCommand;
 import com.ironsgrotto.chat.MemberCardCommands;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.PluginPolicy;
@@ -97,6 +99,12 @@ public class IronsGrottoPlugin extends Plugin
 
 	@Inject
 	private MemberCardCommands memberCardCommands;
+
+	@Inject
+	private EventsCommand eventsCommand;
+
+	@Inject
+	private BroadcastPoller broadcastPoller;
 
 	@Inject
 	private GrottoApiClient api;
@@ -226,6 +234,7 @@ public class IronsGrottoPlugin extends Plugin
 		collectionLogSync.setOnMessage(this::say);
 		collectionLogButton.startUp();
 		memberCardCommands.startUp();
+		eventsCommand.startUp();
 
 		progressUploader.setOnSynced(result ->
 		{
@@ -253,6 +262,7 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.unregister(collectionLogButton);
 		collectionLogButton.shutDown();
 		memberCardCommands.shutDown();
+		eventsCommand.shutDown();
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(eventOverlay);
@@ -278,6 +288,7 @@ public class IronsGrottoPlugin extends Plugin
 		{
 			refresh();
 		}
+		broadcastPoller.tick(policy.getBroadcastPollSeconds());
 	}
 
 	@Subscribe

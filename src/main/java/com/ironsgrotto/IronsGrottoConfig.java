@@ -61,9 +61,21 @@ public interface IronsGrottoConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "showBroadcasts",
+		name = "Clan broadcasts",
+		description = "Show clan broadcasts in chat, such as an event going live",
+		section = notificationsSection,
+		position = 3
+	)
+	default boolean showBroadcasts()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "chatCommands",
 		name = "Chat commands",
-		description = "Answer !rank, !wins and !showcase in chat for clan members",
+		description = "Answer !rank, !wins, !showcase and !events in chat for clan members",
 		section = notificationsSection,
 		position = 2
 	)

@@ -7,4 +7,5 @@ import lombok.Data;
 public class PluginPolicy
 {
 	private int panelRefreshSeconds = 300;
+	private int broadcastPollSeconds = 60;
 }

@@ -8,6 +8,8 @@ import com.google.gson.reflect.TypeToken;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
+import com.ironsgrotto.api.model.Broadcast;
+import com.ironsgrotto.api.model.CalendarEntry;
 import com.ironsgrotto.api.model.EventWinner;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberCard;
@@ -170,6 +172,21 @@ public class GrottoApiClient
 	{
 		return getAsync(API_PREFIX + "/member-card?player=" + java.net.URLEncoder.encode(player, java.nio.charset.StandardCharsets.UTF_8),
 			identity, MemberCard.class, null);
+	}
+
+	/** The newest broadcast not yet shown, or null. {@code seen} reports the last one shown. */
+	public CompletableFuture<Broadcast> getBroadcast(AccountIdentity identity, @Nullable String seen)
+	{
+		String query = seen == null ? "" : "?seen=" + java.net.URLEncoder.encode(seen, java.nio.charset.StandardCharsets.UTF_8);
+		return getAsync(API_PREFIX + "/broadcasts" + query, identity, Broadcast.class, null);
+	}
+
+	/** What is on and next, soonest first. A 404 is an older server. */
+	public CompletableFuture<List<CalendarEntry>> getCalendar(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/calendar", identity, new TypeToken<List<CalendarEntry>>()
+		{
+		}.getType(), null);
 	}
 
 	/** The last SOTW/BOTW winners, newest first. A 404 is an older server. */
