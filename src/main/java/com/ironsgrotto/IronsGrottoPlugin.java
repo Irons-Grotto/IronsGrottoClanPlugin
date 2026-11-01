@@ -6,6 +6,7 @@ import com.google.inject.Provides;
 import com.ironsgrotto.api.ApiException;
 import com.ironsgrotto.api.GrottoApiClient;
 import com.ironsgrotto.api.TokenStore;
+import com.ironsgrotto.chat.MemberCardCommands;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.PluginPolicy;
 import com.ironsgrotto.api.model.Registration;
@@ -93,6 +94,9 @@ public class IronsGrottoPlugin extends Plugin
 
 	@Inject
 	private AccountSession session;
+
+	@Inject
+	private MemberCardCommands memberCardCommands;
 
 	@Inject
 	private GrottoApiClient api;
@@ -221,6 +225,7 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.register(collectionLogButton);
 		collectionLogSync.setOnMessage(this::say);
 		collectionLogButton.startUp();
+		memberCardCommands.startUp();
 
 		progressUploader.setOnSynced(result ->
 		{
@@ -247,6 +252,7 @@ public class IronsGrottoPlugin extends Plugin
 		eventBus.unregister(collectionLogSync);
 		eventBus.unregister(collectionLogButton);
 		collectionLogButton.shutDown();
+		memberCardCommands.shutDown();
 		recorder.detach();
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(eventOverlay);

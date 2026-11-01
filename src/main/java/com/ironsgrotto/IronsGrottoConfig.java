@@ -61,11 +61,23 @@ public interface IronsGrottoConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "chatCommands",
+		name = "Chat commands",
+		description = "Answer !rank, !wins and !showcase in chat for clan members",
+		section = notificationsSection,
+		position = 2
+	)
+	default boolean chatCommands()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "debug",
 		name = "Debug messages",
 		description = "Show every server response in chat",
 		section = notificationsSection,
-		position = 2
+		position = 3
 	)
 	default boolean debug()
 	{

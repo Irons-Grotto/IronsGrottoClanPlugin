@@ -93,6 +93,14 @@ five, because 1.0.0 panels draw every standing they are sent.
 standings: [{ position, playerName, gained }] (top 5), standingsUnavailable } | null,
 next: { …summary } | null }`
 
+## `GET /api/plugin/v1/member-card?player=NAME`
+What `!rank`, `!wins` and `!showcase` show. The viewer's client looks up the sender, so this takes a
+name, not the token's account. `data` is null unless `NAME` is an active member. `{ playerName, rank,
+rankLabel, points, nextRankThreshold|null, wins, showcase: [{ name, itemId }] }`. `rank` is the rank
+id (it names the icon), `rankLabel` is what members call it. `nextRankThreshold` is null at the top
+of the ladder and for mains. `showcase` is the member's five logged items that the fewest active
+members own, rarest first.
+
 ## `POST /api/plugin/v1/events`
 Request (≤ 50 events, all for the header account):
 ```json

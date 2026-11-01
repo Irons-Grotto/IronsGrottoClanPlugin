@@ -9,6 +9,7 @@ import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.MemberCard;
 import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.api.model.TopLoot;
 import com.ironsgrotto.api.model.UpgradePath;
@@ -161,6 +162,13 @@ public class GrottoApiClient
 	public CompletableFuture<UpgradePath> getUpgradePath(AccountIdentity identity)
 	{
 		return getAsync(API_PREFIX + "/upgrade-path", identity, UpgradePath.class, null);
+	}
+
+	/** What the chat commands show for a member. Null data for a non-member; a 404 is an older server. */
+	public CompletableFuture<MemberCard> getMemberCard(AccountIdentity identity, String player)
+	{
+		return getAsync(API_PREFIX + "/member-card?player=" + java.net.URLEncoder.encode(player, java.nio.charset.StandardCharsets.UTF_8),
+			identity, MemberCard.class, null);
 	}
 
 	/** The clan's news, newest first. A 404 is an older server. */
