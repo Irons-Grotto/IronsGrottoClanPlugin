@@ -1,5 +1,6 @@
 package com.ironsgrotto.ui;
 
+import com.ironsgrotto.api.model.EventWinner;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -43,6 +44,37 @@ public class GrottoPanelTest
 		assertEquals("3.56M xp", GrottoPanel.winnerScore("sotw", 3_566_550));
 		assertEquals("932K xp", GrottoPanel.winnerScore("sotw", 932_400));
 		assertEquals("1,204 kc", GrottoPanel.winnerScore("botw", 1_204));
+	}
+
+	private static EventWinner winner(String type, String name, long gained, String shortName)
+	{
+		EventWinner winner = new EventWinner();
+		winner.setType(type);
+		winner.setPlayerName(name);
+		winner.setMetricShortName(shortName);
+		winner.setGained(gained);
+		return winner;
+	}
+
+	@Test
+	public void lastWinnersKeepsTheNewestOfEachType()
+	{
+		assertEquals(
+			java.util.List.of("PNM: Lucky Fe, 147 kc", "RC: Slow Alpaca, 3.02M xp"),
+			GrottoPanel.lastWinnerLines(java.util.List.of(
+				winner("botw", "Lucky Fe", 147, "PNM"),
+				winner("sotw", "Slow Alpaca", 3_027_955, "RC"),
+				winner("botw", "Push Myself", 435, "Vork"),
+				winner("sotw", "Elfyrr", 3_566_550, "WC"))));
+	}
+
+	@Test
+	public void winnerEventUsesTheFullNameOnAnOlderServer()
+	{
+		EventWinner winner = winner("botw", "Lucky Fe", 147, null);
+		winner.setMetricName("Vorkath");
+
+		assertEquals("Vorkath", GrottoPanel.winnerEvent(winner));
 	}
 
 	@Test

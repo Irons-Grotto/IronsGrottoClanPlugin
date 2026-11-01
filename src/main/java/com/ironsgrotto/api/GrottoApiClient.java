@@ -8,9 +8,12 @@ import com.google.gson.reflect.TypeToken;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
-import com.ironsgrotto.api.model.MeResponse;
-import com.ironsgrotto.api.model.Registration;
+import com.ironsgrotto.api.model.Broadcast;
+import com.ironsgrotto.api.model.CalendarEntry;
 import com.ironsgrotto.api.model.EventWinner;
+import com.ironsgrotto.api.model.MeResponse;
+import com.ironsgrotto.api.model.MemberCard;
+import com.ironsgrotto.api.model.Registration;
 import com.ironsgrotto.api.model.TopLoot;
 import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.session.AccountIdentity;
@@ -55,7 +58,7 @@ public class GrottoApiClient
 	 * Sent with every request. The server refuses releases older than its
 	 * minimum with 426, which the plugin shows as "please update".
 	 */
-	public static final String PLUGIN_VERSION = "1.1.4";
+	public static final String PLUGIN_VERSION = "1.2.0";
 
 	private final OkHttpClient http;
 	private final Gson gson;
@@ -162,6 +165,28 @@ public class GrottoApiClient
 	public CompletableFuture<UpgradePath> getUpgradePath(AccountIdentity identity)
 	{
 		return getAsync(API_PREFIX + "/upgrade-path", identity, UpgradePath.class, null);
+	}
+
+	/** What the chat commands show for a member. Null data for a non-member; a 404 is an older server. */
+	public CompletableFuture<MemberCard> getMemberCard(AccountIdentity identity, String player)
+	{
+		return getAsync(API_PREFIX + "/member-card?player=" + java.net.URLEncoder.encode(player, java.nio.charset.StandardCharsets.UTF_8),
+			identity, MemberCard.class, null);
+	}
+
+	/** The newest broadcast not yet shown, or null. {@code seen} reports the last one shown. */
+	public CompletableFuture<Broadcast> getBroadcast(AccountIdentity identity, @Nullable String seen)
+	{
+		String query = seen == null ? "" : "?seen=" + java.net.URLEncoder.encode(seen, java.nio.charset.StandardCharsets.UTF_8);
+		return getAsync(API_PREFIX + "/broadcasts" + query, identity, Broadcast.class, null);
+	}
+
+	/** What is on and next, soonest first. A 404 is an older server. */
+	public CompletableFuture<List<CalendarEntry>> getCalendar(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/calendar", identity, new TypeToken<List<CalendarEntry>>()
+		{
+		}.getType(), null);
 	}
 
 	/** The last SOTW/BOTW winners, newest first. A 404 is an older server. */

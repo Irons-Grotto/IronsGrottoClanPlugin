@@ -93,11 +93,32 @@ five, because 1.0.0 panels draw every standing they are sent.
 standings: [{ position, playerName, gained }] (top 5), standingsUnavailable } | null,
 next: { …summary } | null }`
 
+## `GET /api/plugin/v1/member-card?player=NAME`
+What `!rank`, `!wins` and `!showcase` show. The viewer's client looks up the sender, so this takes a
+name, not the token's account. `data` is null unless `NAME` is an active member. `{ playerName, rank,
+rankLabel, points, nextRankThreshold|null, leaderboardPosition|null, wins, showcase: [{ name, itemId }] }`. `rank` is the rank
+id (it names the icon), `rankLabel` is what members call it. `nextRankThreshold` is null at the top
+of the ladder and for mains. `leaderboardPosition` is the member's place by points among ranked
+members, sent only for the top 25. `showcase` is the member's five logged items that the fewest active
+members own, rarest first.
+
 ## `GET /api/plugin/v1/event-winners`
 The last five finished SOTW/BOTW won by someone still in the clan (an active player record),
 newest first. A win by someone who has left is skipped, not blanked. `data`:
-`[{ eventId, type: sotw|botw, metricName, endsAt, playerName, gained }]`. `gained` is XP for a skill
-week and kills for a boss week.
+`[{ eventId, type: sotw|botw, metricName, metricShortName, endsAt, playerName, gained }]`. `gained`
+is XP for a skill week and kills for a boss week. `metricShortName` is what members call the skill
+or boss (`RC`, `PNM`), or `metricName` when it has no abbreviation; older servers leave it out.
+
+## `GET /api/plugin/v1/broadcasts?seen=ISO`
+Checked every `policy.broadcastPollSeconds` (`/me`, 60 by default). `data` is `{ message, sendsAt,
+eventEndsAt|null }` or null, and only ever the newest broadcast that is due and unexpired, so a
+member back after two weeks gets one line. `seen` is the `sendsAt` of the last one shown; the server
+keeps it as the account's cursor, which is the only record of views. `{end}` in `message` is
+`eventEndsAt`, for the plugin to fill in with the member's own time.
+
+## `GET /api/plugin/v1/calendar`
+What `!events` shows: at most four entries, soonest first. `data`: `[{ title, status:
+live|upcoming|expected, startsAt, endsAt }]`. `expected` is a SOTW or BOTW week nobody has booked yet.
 
 ## `POST /api/plugin/v1/events`
 Request (≤ 50 events, all for the header account):

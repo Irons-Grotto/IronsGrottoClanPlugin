@@ -71,7 +71,6 @@ public class GrottoPanel extends PluginPanel
 	private final CollapsibleSection newsSection;
 	private final CollapsibleSection unlocksSection;
 	private final CollapsibleSection activitySection;
-	private final CollapsibleSection winnersSection;
 	/** Dashboard and Discord, on their own row at the bottom. */
 	private final JPanel linksRow = new JPanel(new GridLayout(1, 0, 4, 0));
 	private final JLabel pendingLabel = new JLabel();
@@ -96,7 +95,6 @@ public class GrottoPanel extends PluginPanel
 	/** Drops shown in the panel; the server sends more. */
 	private static final int TOP_LOOT_ROWS = 5;
 	private static final int ITEM_COLUMNS = 5;
-	private static final int WINNER_ROWS = 5;
 	/** Next unlocks shown; the server sends more. */
 	private static final int UNLOCK_ROWS = 5;
 	private static final int UNLOCK_ICON = 20;
@@ -107,10 +105,15 @@ public class GrottoPanel extends PluginPanel
 	 * side), the section's (8 a side), the dot and the two gaps.
 	 */
 	private static final int NEWS_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16 - 6 - 10;
+	private static final int EVENT_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16;
 	/** The drop whose items are showing; one at a time. */
 	@Nullable
 	private String openLootId;
 	private List<TopLoot> topLoots = java.util.Collections.emptyList();
+	/** Null until the server has answered, and again once logged out. */
+	@Nullable
+	private ClanEventStatus clanEvents;
+	private List<EventWinner> eventWinners = java.util.Collections.emptyList();
 	/** Quiet time after the last keystroke before a token is checked. */
 	private static final int TOKEN_SETTLE_MS = 400;
 	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
@@ -129,7 +132,6 @@ public class GrottoPanel extends PluginPanel
 		this.newsSection = new CollapsibleSection("news", sections);
 		this.unlocksSection = new CollapsibleSection("unlocks", sections);
 		this.activitySection = new CollapsibleSection("activity", sections);
-		this.winnersSection = new CollapsibleSection("winners", sections);
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -166,8 +168,6 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
-		content.add(winnersSection);
-		content.add(Box.createVerticalStrut(8));
 
 		// No buttons and no "all good" status: the plugin syncs by itself, and
 		// the panel only speaks up when the member has something to do.
@@ -193,11 +193,11 @@ public class GrottoPanel extends PluginPanel
 		{
 			status("Log in to see your progress.");
 			accountSection.setVisible(false);
+			clanEvents = null;
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
 			unlocksSection.setVisible(false);
-			winnersSection.setVisible(false);
 			linksRow.setVisible(false);
 		});
 	}
@@ -277,11 +277,11 @@ public class GrottoPanel extends PluginPanel
 			accountSection.body().add(Box.createVerticalStrut(6));
 			accountSection.body().add(tokenLink);
 			accountSection.setVisible(true);
+			clanEvents = null;
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
 			unlocksSection.setVisible(false);
-			winnersSection.setVisible(false);
 			linksRow.setVisible(false);
 			revalidateAll();
 		});
@@ -391,114 +391,125 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			eventSection.clear("");
-			ClanEventStatus.ActiveEvent active = events.getActive();
-
-			if (active != null)
-			{
-				eventSection.setTitle(shortType(active.getType()) + ": " + active.getMetricName());
-				eventSection.body().add(small(timeLeft("Ends", active.getEndsAt())));
-				eventSection.body().add(Box.createVerticalStrut(4));
-
-				List<ClanEventStatus.Standing> standings = active.getStandings();
-				if (active.isStandingsUnavailable())
-				{
-					eventSection.body().add(small("Standings unavailable"));
-				}
-				else if (standings.isEmpty())
-				{
-					eventSection.body().add(small("No gains yet"));
-				}
-				else
-				{
-					// The overlay asks for more rows; the panel keeps its top five.
-					for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
-					{
-						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
-							NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
-						if (standing.getPosition() == 1)
-						{
-							line.getComponent(0).setForeground(ACCENT);
-						}
-						eventSection.body().add(line);
-					}
-				}
-			}
-			ClanEventStatus.EventSummary next = events.getNext();
-			if (next != null)
-			{
-				String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
-				if (active != null)
-				{
-					eventSection.body().add(Box.createVerticalStrut(4));
-					eventSection.body().add(small(upcoming));
-				}
-				else
-				{
-					eventSection.setTitle(upcoming);
-					eventSection.body().add(small(timeLeft("Starts", next.getStartsAt())));
-				}
-			}
-
-			// Nothing running or booked: no section, rather than one saying so.
-			if (active == null && next == null)
-			{
-				eventSection.setVisible(false);
-				revalidateAll();
-				return;
-			}
-
-			eventSection.setVisible(true);
-			revalidateAll();
+			clanEvents = events;
+			renderEvents();
 		});
 	}
 
-	/** Who won the last SOTW/BOTW. An empty list or an older server (null) hides the section. */
+	private void renderEvents()
+	{
+		// Winners can land first; the event block is drawn once events are in.
+		ClanEventStatus events = clanEvents;
+		if (events == null)
+		{
+			return;
+		}
+
+		eventSection.clear("");
+		ClanEventStatus.ActiveEvent active = events.getActive();
+
+		if (active != null)
+		{
+			eventSection.setTitle(shortType(active.getType()) + ": " + active.getMetricName());
+			eventSection.body().add(small(timeLeft("Ends", active.getEndsAt())));
+			eventSection.body().add(Box.createVerticalStrut(4));
+
+			List<ClanEventStatus.Standing> standings = active.getStandings();
+			if (active.isStandingsUnavailable())
+			{
+				eventSection.body().add(small("Standings unavailable"));
+			}
+			else if (standings.isEmpty())
+			{
+				eventSection.body().add(small("No gains yet"));
+			}
+			else
+			{
+				// The overlay asks for more rows; the panel keeps its top five.
+				for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
+				{
+					JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
+						NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
+					if (standing.getPosition() == 1)
+					{
+						line.getComponent(0).setForeground(ACCENT);
+					}
+					eventSection.body().add(line);
+				}
+			}
+		}
+		ClanEventStatus.EventSummary next = events.getNext();
+		if (next != null)
+		{
+			String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
+			if (active != null)
+			{
+				eventSection.body().add(Box.createVerticalStrut(4));
+				eventSection.body().add(small(upcoming));
+			}
+			else
+			{
+				eventSection.setTitle(upcoming);
+				eventSection.body().add(small(timeLeft("Starts", next.getStartsAt())));
+			}
+		}
+
+		List<String> winnerLines = lastWinnerLines(eventWinners);
+
+		// Nothing to say: no section, rather than one saying so.
+		if (active == null && next == null && winnerLines.isEmpty())
+		{
+			eventSection.setVisible(false);
+			revalidateAll();
+			return;
+		}
+
+		if (active == null && next == null)
+		{
+			eventSection.setTitle("Event winners");
+		}
+		else if (!winnerLines.isEmpty())
+		{
+			eventSection.body().add(divider());
+			JLabel caption = small("Previous winners");
+			caption.setForeground(Color.WHITE);
+			eventSection.body().add(caption);
+		}
+		for (String line : winnerLines)
+		{
+			// A long name and a long boss can pass the panel's width.
+			eventSection.body().add(small("<html><div style='width:" + EVENT_TEXT_WIDTH + "px'>"
+				+ escape(line) + "</div></html>"));
+		}
+
+		eventSection.setVisible(true);
+		revalidateAll();
+	}
+
+	/** Who won the last SOTW/BOTW, shown under the event. An older server (null) adds no lines. */
 	public void showEventWinners(@Nullable List<EventWinner> winners)
 	{
 		onEdt(() ->
 		{
-			winnersSection.clear("Event winners");
-			if (winners == null || winners.isEmpty())
-			{
-				winnersSection.setVisible(false);
-				revalidateAll();
-				return;
-			}
-
-			for (EventWinner winner : winners.subList(0, Math.min(WINNER_ROWS, winners.size())))
-			{
-				winnersSection.body().add(winnerRow(winner));
-			}
-			winnersSection.setVisible(true);
-			revalidateAll();
+			eventWinners = winners == null ? java.util.Collections.emptyList() : winners;
+			renderEvents();
 		});
 	}
 
-	private static JPanel winnerRow(EventWinner winner)
+	/** One line per event type, for its latest winner: newest first. */
+	static List<String> lastWinnerLines(List<EventWinner> winners)
 	{
-		JPanel row = new JPanel(new BorderLayout(4, 0));
-		row.setOpaque(false);
-		row.setAlignmentX(Component.LEFT_ALIGNMENT);
-		row.setBorder(new EmptyBorder(2, 0, 2, 0));
-
-		JPanel who = inline();
-		JLabel name = new JLabel(winner.getPlayerName());
-		name.setForeground(Color.WHITE);
-		who.add(name);
-		String event = shortType(winner.getType()) + ": " + winner.getMetricName();
-		JLabel eventLabel = small(event);
-		eventLabel.setToolTipText(event);
-		who.add(eventLabel);
-		row.add(who, BorderLayout.CENTER);
-
-		JLabel gained = new JLabel(winnerScore(winner.getType(), winner.getGained()));
-		gained.setForeground(ACCENT);
-		gained.setVerticalAlignment(JLabel.TOP);
-		row.add(gained, BorderLayout.EAST);
-
-		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
-		return row;
+		List<String> lines = new java.util.ArrayList<>();
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		for (EventWinner winner : winners)
+		{
+			if (seen.add(winner.getType()))
+			{
+				lines.add(winnerEvent(winner) + ": " + winner.getPlayerName()
+					+ ", " + winnerScore(winner.getType(), winner.getGained()));
+			}
+		}
+		return lines;
 	}
 
 	/**
@@ -983,6 +994,24 @@ public class GrottoPanel extends PluginPanel
 		return label;
 	}
 
+	/** A hairline between two parts of a section. */
+	private static JPanel divider()
+	{
+		JPanel line = new JPanel();
+		line.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
+		line.setAlignmentX(Component.LEFT_ALIGNMENT);
+		line.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, 1));
+		line.setPreferredSize(new Dimension(EVENT_TEXT_WIDTH, 1));
+
+		JPanel spaced = new JPanel(new BorderLayout());
+		spaced.setOpaque(false);
+		spaced.setAlignmentX(Component.LEFT_ALIGNMENT);
+		spaced.setBorder(new EmptyBorder(5, 0, 5, 0));
+		spaced.add(line, BorderLayout.CENTER);
+		spaced.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, 11));
+		return spaced;
+	}
+
 	private static JLabel wrapped(String text)
 	{
 		JLabel label = small("<html>" + escape(text) + "</html>");
@@ -1055,6 +1084,12 @@ public class GrottoPanel extends PluginPanel
 	{
 		String amount = "botw".equals(eventType) ? NUMBERS.format(gained) : shortGp(gained);
 		return amount + " " + gainUnit(eventType);
+	}
+
+	/** The skill or boss a win was on: what members call it, or its full name on an older server. */
+	static String winnerEvent(EventWinner winner)
+	{
+		return winner.getMetricShortName() != null ? winner.getMetricShortName() : winner.getMetricName();
 	}
 
 	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */
