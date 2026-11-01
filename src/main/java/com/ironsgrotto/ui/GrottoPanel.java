@@ -2,6 +2,7 @@ package com.ironsgrotto.ui;
 
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
+import com.ironsgrotto.api.model.EventWinner;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
 import com.ironsgrotto.api.model.TopLoot;
@@ -70,6 +71,7 @@ public class GrottoPanel extends PluginPanel
 	private final CollapsibleSection newsSection;
 	private final CollapsibleSection unlocksSection;
 	private final CollapsibleSection activitySection;
+	private final CollapsibleSection winnersSection;
 	/** Dashboard and Discord, on their own row at the bottom. */
 	private final JPanel linksRow = new JPanel(new GridLayout(1, 0, 4, 0));
 	private final JLabel pendingLabel = new JLabel();
@@ -94,6 +96,7 @@ public class GrottoPanel extends PluginPanel
 	/** Drops shown in the panel; the server sends more. */
 	private static final int TOP_LOOT_ROWS = 5;
 	private static final int ITEM_COLUMNS = 5;
+	private static final int WINNER_ROWS = 5;
 	/** Next unlocks shown; the server sends more. */
 	private static final int UNLOCK_ROWS = 5;
 	private static final int UNLOCK_ICON = 20;
@@ -126,6 +129,7 @@ public class GrottoPanel extends PluginPanel
 		this.newsSection = new CollapsibleSection("news", sections);
 		this.unlocksSection = new CollapsibleSection("unlocks", sections);
 		this.activitySection = new CollapsibleSection("activity", sections);
+		this.winnersSection = new CollapsibleSection("winners", sections);
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -162,6 +166,8 @@ public class GrottoPanel extends PluginPanel
 		content.add(Box.createVerticalStrut(8));
 		content.add(activitySection);
 		content.add(Box.createVerticalStrut(8));
+		content.add(winnersSection);
+		content.add(Box.createVerticalStrut(8));
 
 		// No buttons and no "all good" status: the plugin syncs by itself, and
 		// the panel only speaks up when the member has something to do.
@@ -191,6 +197,7 @@ public class GrottoPanel extends PluginPanel
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
 			unlocksSection.setVisible(false);
+			winnersSection.setVisible(false);
 			linksRow.setVisible(false);
 		});
 	}
@@ -274,6 +281,7 @@ public class GrottoPanel extends PluginPanel
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
 			unlocksSection.setVisible(false);
+			winnersSection.setVisible(false);
 			linksRow.setVisible(false);
 			revalidateAll();
 		});
@@ -443,6 +451,54 @@ public class GrottoPanel extends PluginPanel
 			eventSection.setVisible(true);
 			revalidateAll();
 		});
+	}
+
+	/** Who won the last SOTW/BOTW. An empty list or an older server (null) hides the section. */
+	public void showEventWinners(@Nullable List<EventWinner> winners)
+	{
+		onEdt(() ->
+		{
+			winnersSection.clear("Event winners");
+			if (winners == null || winners.isEmpty())
+			{
+				winnersSection.setVisible(false);
+				revalidateAll();
+				return;
+			}
+
+			for (EventWinner winner : winners.subList(0, Math.min(WINNER_ROWS, winners.size())))
+			{
+				winnersSection.body().add(winnerRow(winner));
+			}
+			winnersSection.setVisible(true);
+			revalidateAll();
+		});
+	}
+
+	private static JPanel winnerRow(EventWinner winner)
+	{
+		JPanel row = new JPanel(new BorderLayout(4, 0));
+		row.setOpaque(false);
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setBorder(new EmptyBorder(2, 0, 2, 0));
+
+		JPanel who = inline();
+		JLabel name = new JLabel(winner.getPlayerName());
+		name.setForeground(Color.WHITE);
+		who.add(name);
+		String event = shortType(winner.getType()) + ": " + winner.getMetricName();
+		JLabel eventLabel = small(event);
+		eventLabel.setToolTipText(event);
+		who.add(eventLabel);
+		row.add(who, BorderLayout.CENTER);
+
+		JLabel gained = new JLabel(winnerScore(winner.getType(), winner.getGained()));
+		gained.setForeground(ACCENT);
+		gained.setVerticalAlignment(JLabel.TOP);
+		row.add(gained, BorderLayout.EAST);
+
+		row.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, row.getPreferredSize().height));
+		return row;
 	}
 
 	/**
@@ -992,6 +1048,13 @@ public class GrottoPanel extends PluginPanel
 	static String shortType(@Nullable String eventType)
 	{
 		return eventType == null ? "Event" : eventType.toUpperCase(java.util.Locale.ROOT);
+	}
+
+	/** A win's score: XP short (3.12M xp), kills in full (236 kc). */
+	static String winnerScore(@Nullable String eventType, long gained)
+	{
+		String amount = "botw".equals(eventType) ? NUMBERS.format(gained) : shortGp(gained);
+		return amount + " " + gainUnit(eventType);
 	}
 
 	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */

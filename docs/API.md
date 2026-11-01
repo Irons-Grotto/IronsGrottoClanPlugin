@@ -93,6 +93,12 @@ five, because 1.0.0 panels draw every standing they are sent.
 standings: [{ position, playerName, gained }] (top 5), standingsUnavailable } | null,
 next: { …summary } | null }`
 
+## `GET /api/plugin/v1/event-winners`
+The last five finished SOTW/BOTW won by someone still in the clan (an active player record),
+newest first. A win by someone who has left is skipped, not blanked. `data`:
+`[{ eventId, type: sotw|botw, metricName, endsAt, playerName, gained }]`. `gained` is XP for a skill
+week and kills for a boss week.
+
 ## `POST /api/plugin/v1/events`
 Request (≤ 50 events, all for the header account):
 ```json
