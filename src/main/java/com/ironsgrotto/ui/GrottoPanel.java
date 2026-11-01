@@ -458,7 +458,7 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			winnersSection.clear("Recent winners");
+			winnersSection.clear("Event winners");
 			if (winners == null || winners.isEmpty())
 			{
 				winnersSection.setVisible(false);
