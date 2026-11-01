@@ -10,6 +10,7 @@ import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.Registration;
+import com.ironsgrotto.api.model.EventWinner;
 import com.ironsgrotto.api.model.TopLoot;
 import com.ironsgrotto.api.model.UpgradePath;
 import com.ironsgrotto.session.AccountIdentity;
@@ -161,6 +162,14 @@ public class GrottoApiClient
 	public CompletableFuture<UpgradePath> getUpgradePath(AccountIdentity identity)
 	{
 		return getAsync(API_PREFIX + "/upgrade-path", identity, UpgradePath.class, null);
+	}
+
+	/** The last SOTW/BOTW winners, newest first. A 404 is an older server. */
+	public CompletableFuture<List<EventWinner>> getEventWinners(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/event-winners", identity, new TypeToken<List<EventWinner>>()
+		{
+		}.getType(), null);
 	}
 
 	/** The clan's news, newest first. A 404 is an older server. */

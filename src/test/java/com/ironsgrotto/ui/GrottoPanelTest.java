@@ -38,6 +38,14 @@ public class GrottoPanelTest
 	}
 
 	@Test
+	public void winnerScoreShortensXpButNotKills()
+	{
+		assertEquals("3.56M xp", GrottoPanel.winnerScore("sotw", 3_566_550));
+		assertEquals("932K xp", GrottoPanel.winnerScore("sotw", 932_400));
+		assertEquals("1,204 kc", GrottoPanel.winnerScore("botw", 1_204));
+	}
+
+	@Test
 	public void agoIsOneShortWord()
 	{
 		java.time.Instant now = java.time.Instant.parse("2026-10-02T12:00:00Z");
