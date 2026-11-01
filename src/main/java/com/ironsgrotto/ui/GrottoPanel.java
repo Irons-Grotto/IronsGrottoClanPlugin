@@ -2,6 +2,7 @@ package com.ironsgrotto.ui;
 
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
+import com.ironsgrotto.api.model.EventWinner;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberStatus;
 import com.ironsgrotto.api.model.TopLoot;
@@ -108,6 +109,10 @@ public class GrottoPanel extends PluginPanel
 	@Nullable
 	private String openLootId;
 	private List<TopLoot> topLoots = java.util.Collections.emptyList();
+	/** Null until the server has answered, and again once logged out. */
+	@Nullable
+	private ClanEventStatus clanEvents;
+	private List<EventWinner> eventWinners = java.util.Collections.emptyList();
 	/** Quiet time after the last keystroke before a token is checked. */
 	private static final int TOKEN_SETTLE_MS = 400;
 	private static final Pattern TOKEN_SHAPE = Pattern.compile("^igp_[A-Za-z0-9_-]{43}$");
@@ -187,6 +192,7 @@ public class GrottoPanel extends PluginPanel
 		{
 			status("Log in to see your progress.");
 			accountSection.setVisible(false);
+			clanEvents = null;
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
@@ -270,6 +276,7 @@ public class GrottoPanel extends PluginPanel
 			accountSection.body().add(Box.createVerticalStrut(6));
 			accountSection.body().add(tokenLink);
 			accountSection.setVisible(true);
+			clanEvents = null;
 			eventSection.setVisible(false);
 			topLootSection.setVisible(false);
 			newsSection.setVisible(false);
@@ -383,66 +390,120 @@ public class GrottoPanel extends PluginPanel
 	{
 		onEdt(() ->
 		{
-			eventSection.clear("");
-			ClanEventStatus.ActiveEvent active = events.getActive();
+			clanEvents = events;
+			renderEvents();
+		});
+	}
 
+	private void renderEvents()
+	{
+		// Winners can land first; the event block is drawn once events are in.
+		ClanEventStatus events = clanEvents;
+		if (events == null)
+		{
+			return;
+		}
+
+		eventSection.clear("");
+		ClanEventStatus.ActiveEvent active = events.getActive();
+
+		if (active != null)
+		{
+			eventSection.setTitle(shortType(active.getType()) + ": " + active.getMetricName());
+			eventSection.body().add(small(timeLeft("Ends", active.getEndsAt())));
+			eventSection.body().add(Box.createVerticalStrut(4));
+
+			List<ClanEventStatus.Standing> standings = active.getStandings();
+			if (active.isStandingsUnavailable())
+			{
+				eventSection.body().add(small("Standings unavailable"));
+			}
+			else if (standings.isEmpty())
+			{
+				eventSection.body().add(small("No gains yet"));
+			}
+			else
+			{
+				// The overlay asks for more rows; the panel keeps its top five.
+				for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
+				{
+					JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
+						NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
+					if (standing.getPosition() == 1)
+					{
+						line.getComponent(0).setForeground(ACCENT);
+					}
+					eventSection.body().add(line);
+				}
+			}
+		}
+		ClanEventStatus.EventSummary next = events.getNext();
+		if (next != null)
+		{
+			String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
 			if (active != null)
 			{
-				eventSection.setTitle(shortType(active.getType()) + ": " + active.getMetricName());
-				eventSection.body().add(small(timeLeft("Ends", active.getEndsAt())));
 				eventSection.body().add(Box.createVerticalStrut(4));
-
-				List<ClanEventStatus.Standing> standings = active.getStandings();
-				if (active.isStandingsUnavailable())
-				{
-					eventSection.body().add(small("Standings unavailable"));
-				}
-				else if (standings.isEmpty())
-				{
-					eventSection.body().add(small("No gains yet"));
-				}
-				else
-				{
-					// The overlay asks for more rows; the panel keeps its top five.
-					for (ClanEventStatus.Standing standing : standings.subList(0, Math.min(PANEL_STANDINGS, standings.size())))
-					{
-						JPanel line = row(standing.getPosition() + ". " + standing.getPlayerName(),
-							NUMBERS.format(standing.getGained()) + " " + gainUnit(active.getType()));
-						if (standing.getPosition() == 1)
-						{
-							line.getComponent(0).setForeground(ACCENT);
-						}
-						eventSection.body().add(line);
-					}
-				}
+				eventSection.body().add(small(upcoming));
 			}
-			ClanEventStatus.EventSummary next = events.getNext();
-			if (next != null)
+			else
 			{
-				String upcoming = "Upcoming " + shortType(next.getType()) + ": " + next.getMetricName();
-				if (active != null)
-				{
-					eventSection.body().add(Box.createVerticalStrut(4));
-					eventSection.body().add(small(upcoming));
-				}
-				else
-				{
-					eventSection.setTitle(upcoming);
-					eventSection.body().add(small(timeLeft("Starts", next.getStartsAt())));
-				}
+				eventSection.setTitle(upcoming);
+				eventSection.body().add(small(timeLeft("Starts", next.getStartsAt())));
 			}
+		}
 
-			// Nothing running or booked: no section, rather than one saying so.
-			if (active == null && next == null)
-			{
-				eventSection.setVisible(false);
-				revalidateAll();
-				return;
-			}
+		List<String> winnerLines = lastWinnerLines(eventWinners);
 
-			eventSection.setVisible(true);
+		// Nothing to say: no section, rather than one saying so.
+		if (active == null && next == null && winnerLines.isEmpty())
+		{
+			eventSection.setVisible(false);
 			revalidateAll();
+			return;
+		}
+
+		if (active == null && next == null)
+		{
+			eventSection.setTitle("Event winners");
+		}
+		else if (!winnerLines.isEmpty())
+		{
+			eventSection.body().add(Box.createVerticalStrut(4));
+		}
+		for (String line : winnerLines)
+		{
+			eventSection.body().add(small(line));
+		}
+
+		eventSection.setVisible(true);
+		revalidateAll();
+	}
+
+	/** Who won the last SOTW/BOTW, shown under the event. An older server (null) adds no lines. */
+	public void showEventWinners(@Nullable List<EventWinner> winners)
+	{
+		onEdt(() ->
+		{
+			eventWinners = winners == null ? java.util.Collections.emptyList() : winners;
+			renderEvents();
 		});
+	}
+
+	/** One line per event type, for its latest winner: newest first. */
+	static List<String> lastWinnerLines(List<EventWinner> winners)
+	{
+		List<String> lines = new java.util.ArrayList<>();
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		for (EventWinner winner : winners)
+		{
+			if (seen.add(winner.getType()))
+			{
+				lines.add("Last " + shortType(winner.getType()) + ": " + winner.getPlayerName()
+					+ ", " + winnerScore(winner.getType(), winner.getGained()));
+			}
+		}
+		return lines;
 	}
 
 	/**
@@ -992,6 +1053,13 @@ public class GrottoPanel extends PluginPanel
 	static String shortType(@Nullable String eventType)
 	{
 		return eventType == null ? "Event" : eventType.toUpperCase(java.util.Locale.ROOT);
+	}
+
+	/** A win's score: XP short (3.12M xp), kills in full (236 kc). */
+	static String winnerScore(@Nullable String eventType, long gained)
+	{
+		String amount = "botw".equals(eventType) ? NUMBERS.format(gained) : shortGp(gained);
+		return amount + " " + gainUnit(eventType);
 	}
 
 	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */

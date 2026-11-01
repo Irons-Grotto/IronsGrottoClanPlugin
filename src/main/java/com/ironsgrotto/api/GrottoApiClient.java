@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken;
 import com.ironsgrotto.IronsGrottoConfig;
 import com.ironsgrotto.api.model.ClanEventStatus;
 import com.ironsgrotto.api.model.ClanNews;
+import com.ironsgrotto.api.model.EventWinner;
 import com.ironsgrotto.api.model.MeResponse;
 import com.ironsgrotto.api.model.MemberCard;
 import com.ironsgrotto.api.model.Registration;
@@ -169,6 +170,14 @@ public class GrottoApiClient
 	{
 		return getAsync(API_PREFIX + "/member-card?player=" + java.net.URLEncoder.encode(player, java.nio.charset.StandardCharsets.UTF_8),
 			identity, MemberCard.class, null);
+	}
+
+	/** The last SOTW/BOTW winners, newest first. A 404 is an older server. */
+	public CompletableFuture<List<EventWinner>> getEventWinners(AccountIdentity identity)
+	{
+		return getAsync(API_PREFIX + "/event-winners", identity, new TypeToken<List<EventWinner>>()
+		{
+		}.getType(), null);
 	}
 
 	/** The clan's news, newest first. A 404 is an older server. */

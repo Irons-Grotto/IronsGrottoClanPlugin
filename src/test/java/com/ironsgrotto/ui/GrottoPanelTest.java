@@ -1,5 +1,6 @@
 package com.ironsgrotto.ui;
 
+import com.ironsgrotto.api.model.EventWinner;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,6 +36,35 @@ public class GrottoPanelTest
 		assertEquals("42.8M", GrottoPanel.shortGp(42_820_578));
 		assertEquals("42M", GrottoPanel.shortGp(42_065_000));
 		assertEquals("2.14B", GrottoPanel.shortGp(2_147_483_647L));
+	}
+
+	@Test
+	public void winnerScoreShortensXpButNotKills()
+	{
+		assertEquals("3.56M xp", GrottoPanel.winnerScore("sotw", 3_566_550));
+		assertEquals("932K xp", GrottoPanel.winnerScore("sotw", 932_400));
+		assertEquals("1,204 kc", GrottoPanel.winnerScore("botw", 1_204));
+	}
+
+	private static EventWinner winner(String type, String name, long gained)
+	{
+		EventWinner winner = new EventWinner();
+		winner.setType(type);
+		winner.setPlayerName(name);
+		winner.setGained(gained);
+		return winner;
+	}
+
+	@Test
+	public void lastWinnersKeepsTheNewestOfEachType()
+	{
+		assertEquals(
+			java.util.List.of("Last BOTW: Lucky Fe, 147 kc", "Last SOTW: Slow Alpaca, 3.02M xp"),
+			GrottoPanel.lastWinnerLines(java.util.List.of(
+				winner("botw", "Lucky Fe", 147),
+				winner("sotw", "Slow Alpaca", 3_027_955),
+				winner("botw", "Push Myself", 435),
+				winner("sotw", "Elfyrr", 3_566_550))));
 	}
 
 	@Test

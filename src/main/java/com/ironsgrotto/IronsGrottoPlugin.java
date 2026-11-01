@@ -472,6 +472,16 @@ public class IronsGrottoPlugin extends Plugin
 				panel.showTopLoots(null);
 				return null;
 			});
+
+		// An older server has no winners (404): the section stays hidden.
+		api.getEventWinners(identity)
+			.thenAccept(winners -> panel.showEventWinners(winners))
+			.exceptionally(error ->
+			{
+				log.debug("Could not load event winners", error);
+				panel.showEventWinners(null);
+				return null;
+			});
 	}
 
 	/** SOTW/BOTW standings for the panel and the overlay. */
