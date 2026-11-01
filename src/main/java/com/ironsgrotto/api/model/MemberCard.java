@@ -18,6 +18,9 @@ public class MemberCard
 	/** Null at the top of the ladder and for mains. */
 	@Nullable
 	private Long nextRankThreshold;
+	/** Place on the leaderboard, for the top 25 only. */
+	@Nullable
+	private Integer leaderboardPosition;
 	private int wins;
 	/** Rarest in the clan first. */
 	private List<Item> showcase = new ArrayList<>();

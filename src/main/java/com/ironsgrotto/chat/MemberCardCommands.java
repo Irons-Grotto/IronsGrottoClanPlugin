@@ -49,6 +49,7 @@ public class MemberCardCommands
 	private static final String RANK = "!rank";
 	private static final String WINS = "!wins";
 	private static final String SHOWCASE = "!showcase";
+	private static final String SEPARATOR = " | ";
 	/** Chat icons sit on one line of text; item sprites are 36x32. */
 	private static final int ICON_WIDTH = 18;
 	private static final int ICON_HEIGHT = 16;
@@ -169,7 +170,7 @@ public class MemberCardCommands
 		}
 	}
 
-	/** The rank's icon, its name and its points: "Corporal 1,800/3,000". */
+	/** The rank's icon, name and points, and for the top 25 their place: "General | 16,877/19,000 | #12 in the Grotto". */
 	private String rankMessage(MemberCard card)
 	{
 		ChatMessageBuilder builder = new ChatMessageBuilder();
@@ -178,19 +179,35 @@ public class MemberCardCommands
 		{
 			builder.img(icon).append(" ");
 		}
-		return builder
-			.append(ChatColorType.HIGHLIGHT)
-			.append(rankText(card))
-			.build();
+		builder.append(ChatColorType.HIGHLIGHT)
+			.append(card.getRankLabel())
+			.append(ChatColorType.NORMAL)
+			.append(SEPARATOR + pointsText(card));
+		String position = positionText(card);
+		if (position != null)
+		{
+			builder.append(SEPARATOR)
+				.append(ChatColorType.HIGHLIGHT)
+				.append(position);
+		}
+		return builder.build();
 	}
 
-	static String rankText(MemberCard card)
+	static String pointsText(MemberCard card)
 	{
 		NumberFormat numbers = NumberFormat.getIntegerInstance(Locale.ROOT);
 		String points = numbers.format(card.getPoints());
-		return card.getRankLabel() + " " + (card.getNextRankThreshold() == null
+		return card.getNextRankThreshold() == null
 			? points
-			: points + "/" + numbers.format(card.getNextRankThreshold()));
+			: points + "/" + numbers.format(card.getNextRankThreshold());
+	}
+
+	@Nullable
+	static String positionText(MemberCard card)
+	{
+		return card.getLeaderboardPosition() == null
+			? null
+			: "#" + card.getLeaderboardPosition() + " in the Grotto";
 	}
 
 	static String winsMessage(MemberCard card)

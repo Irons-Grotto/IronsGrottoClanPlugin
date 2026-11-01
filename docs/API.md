@@ -96,9 +96,10 @@ next: { …summary } | null }`
 ## `GET /api/plugin/v1/member-card?player=NAME`
 What `!rank`, `!wins` and `!showcase` show. The viewer's client looks up the sender, so this takes a
 name, not the token's account. `data` is null unless `NAME` is an active member. `{ playerName, rank,
-rankLabel, points, nextRankThreshold|null, wins, showcase: [{ name, itemId }] }`. `rank` is the rank
+rankLabel, points, nextRankThreshold|null, leaderboardPosition|null, wins, showcase: [{ name, itemId }] }`. `rank` is the rank
 id (it names the icon), `rankLabel` is what members call it. `nextRankThreshold` is null at the top
-of the ladder and for mains. `showcase` is the member's five logged items that the fewest active
+of the ladder and for mains. `leaderboardPosition` is the member's place by points among ranked
+members, sent only for the top 25. `showcase` is the member's five logged items that the fewest active
 members own, rarest first.
 
 ## `GET /api/plugin/v1/event-winners`
