@@ -105,6 +105,7 @@ public class GrottoPanel extends PluginPanel
 	 * side), the section's (8 a side), the dot and the two gaps.
 	 */
 	private static final int NEWS_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16 - 6 - 10;
+	private static final int EVENT_TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 20 - 16;
 	/** The drop whose items are showing; one at a time. */
 	@Nullable
 	private String openLootId;
@@ -469,11 +470,16 @@ public class GrottoPanel extends PluginPanel
 		}
 		else if (!winnerLines.isEmpty())
 		{
-			eventSection.body().add(Box.createVerticalStrut(4));
+			eventSection.body().add(divider());
+			JLabel caption = small("Previous winners");
+			caption.setForeground(Color.WHITE);
+			eventSection.body().add(caption);
 		}
 		for (String line : winnerLines)
 		{
-			eventSection.body().add(small(line));
+			// A long name and a long boss can pass the panel's width.
+			eventSection.body().add(small("<html><div style='width:" + EVENT_TEXT_WIDTH + "px'>"
+				+ escape(line) + "</div></html>"));
 		}
 
 		eventSection.setVisible(true);
@@ -499,7 +505,7 @@ public class GrottoPanel extends PluginPanel
 		{
 			if (seen.add(winner.getType()))
 			{
-				lines.add("Last " + shortType(winner.getType()) + ": " + winner.getPlayerName()
+				lines.add(winnerEvent(winner) + ": " + winner.getPlayerName()
 					+ ", " + winnerScore(winner.getType(), winner.getGained()));
 			}
 		}
@@ -988,6 +994,24 @@ public class GrottoPanel extends PluginPanel
 		return label;
 	}
 
+	/** A hairline between two parts of a section. */
+	private static JPanel divider()
+	{
+		JPanel line = new JPanel();
+		line.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
+		line.setAlignmentX(Component.LEFT_ALIGNMENT);
+		line.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, 1));
+		line.setPreferredSize(new Dimension(EVENT_TEXT_WIDTH, 1));
+
+		JPanel spaced = new JPanel(new BorderLayout());
+		spaced.setOpaque(false);
+		spaced.setAlignmentX(Component.LEFT_ALIGNMENT);
+		spaced.setBorder(new EmptyBorder(5, 0, 5, 0));
+		spaced.add(line, BorderLayout.CENTER);
+		spaced.setMaximumSize(new Dimension(PluginPanel.PANEL_WIDTH, 11));
+		return spaced;
+	}
+
 	private static JLabel wrapped(String text)
 	{
 		JLabel label = small("<html>" + escape(text) + "</html>");
@@ -1060,6 +1084,12 @@ public class GrottoPanel extends PluginPanel
 	{
 		String amount = "botw".equals(eventType) ? NUMBERS.format(gained) : shortGp(gained);
 		return amount + " " + gainUnit(eventType);
+	}
+
+	/** The skill or boss a win was on: what members call it, or its full name on an older server. */
+	static String winnerEvent(EventWinner winner)
+	{
+		return winner.getMetricShortName() != null ? winner.getMetricShortName() : winner.getMetricName();
 	}
 
 	/** What a competition's "gained" counts: experience for a skill week, kills for a boss week. */

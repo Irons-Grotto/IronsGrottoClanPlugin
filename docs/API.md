@@ -104,8 +104,9 @@ members own, rarest first.
 ## `GET /api/plugin/v1/event-winners`
 The last five finished SOTW/BOTW won by someone still in the clan (an active player record),
 newest first. A win by someone who has left is skipped, not blanked. `data`:
-`[{ eventId, type: sotw|botw, metricName, endsAt, playerName, gained }]`. `gained` is XP for a skill
-week and kills for a boss week.
+`[{ eventId, type: sotw|botw, metricName, metricShortName, endsAt, playerName, gained }]`. `gained`
+is XP for a skill week and kills for a boss week. `metricShortName` is what members call the skill
+or boss (`RC`, `PNM`), or `metricName` when it has no abbreviation; older servers leave it out.
 
 ## `POST /api/plugin/v1/events`
 Request (≤ 50 events, all for the header account):

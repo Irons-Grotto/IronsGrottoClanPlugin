@@ -46,11 +46,12 @@ public class GrottoPanelTest
 		assertEquals("1,204 kc", GrottoPanel.winnerScore("botw", 1_204));
 	}
 
-	private static EventWinner winner(String type, String name, long gained)
+	private static EventWinner winner(String type, String name, long gained, String shortName)
 	{
 		EventWinner winner = new EventWinner();
 		winner.setType(type);
 		winner.setPlayerName(name);
+		winner.setMetricShortName(shortName);
 		winner.setGained(gained);
 		return winner;
 	}
@@ -59,12 +60,21 @@ public class GrottoPanelTest
 	public void lastWinnersKeepsTheNewestOfEachType()
 	{
 		assertEquals(
-			java.util.List.of("Last BOTW: Lucky Fe, 147 kc", "Last SOTW: Slow Alpaca, 3.02M xp"),
+			java.util.List.of("PNM: Lucky Fe, 147 kc", "RC: Slow Alpaca, 3.02M xp"),
 			GrottoPanel.lastWinnerLines(java.util.List.of(
-				winner("botw", "Lucky Fe", 147),
-				winner("sotw", "Slow Alpaca", 3_027_955),
-				winner("botw", "Push Myself", 435),
-				winner("sotw", "Elfyrr", 3_566_550))));
+				winner("botw", "Lucky Fe", 147, "PNM"),
+				winner("sotw", "Slow Alpaca", 3_027_955, "RC"),
+				winner("botw", "Push Myself", 435, "Vork"),
+				winner("sotw", "Elfyrr", 3_566_550, "WC"))));
+	}
+
+	@Test
+	public void winnerEventUsesTheFullNameOnAnOlderServer()
+	{
+		EventWinner winner = winner("botw", "Lucky Fe", 147, null);
+		winner.setMetricName("Vorkath");
+
+		assertEquals("Vorkath", GrottoPanel.winnerEvent(winner));
 	}
 
 	@Test

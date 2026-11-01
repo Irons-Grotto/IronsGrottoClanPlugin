@@ -10,6 +10,8 @@ public class EventWinner
 	/** {@code sotw} or {@code botw}. */
 	private String type;
 	private String metricName;
+	/** What members call the skill or boss. An older server leaves it out. */
+	private String metricShortName;
 	/** ISO-8601 instant. */
 	private String endsAt;
 	private String playerName;
