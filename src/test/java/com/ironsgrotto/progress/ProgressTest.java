@@ -26,10 +26,21 @@ public class ProgressTest
 	@Test
 	public void diaryTierIsTheHighestCompleted()
 	{
-		assertEquals("None", ProgressRules.diaryTier(new int[] {0, 0, 0, 0}));
-		assertEquals("Hard", ProgressRules.diaryTier(new int[] {1, 1, 1, 0}));
-		// Karamja's older varbits may read 2 when done; any non-zero counts.
-		assertEquals("Medium", ProgressRules.diaryTier(new int[] {2, 2, 0, 0}));
+		int[] standard = GameIds.diaryDoneValues("Varrock");
+		assertEquals("None", ProgressRules.diaryTier(new int[] {0, 0, 0, 0}, standard));
+		assertEquals("Hard", ProgressRules.diaryTier(new int[] {1, 1, 1, 0}, standard));
+	}
+
+	@Test
+	public void karamjaTierIsDoneAtTwoNotWhenStarted()
+	{
+		int[] karamja = GameIds.diaryDoneValues("Karamja");
+		// Easy and Medium done, Hard started: 1 means in progress.
+		assertEquals("Medium", ProgressRules.diaryTier(new int[] {2, 2, 1, 0}, karamja));
+		assertEquals("None", ProgressRules.diaryTier(new int[] {1, 0, 0, 0}, karamja));
+		assertEquals("Hard", ProgressRules.diaryTier(new int[] {2, 2, 2, 0}, karamja));
+		// Elite is a *_COMPLETE varbit like every other diary's.
+		assertEquals("Elite", ProgressRules.diaryTier(new int[] {2, 2, 2, 1}, karamja));
 	}
 
 	@Test

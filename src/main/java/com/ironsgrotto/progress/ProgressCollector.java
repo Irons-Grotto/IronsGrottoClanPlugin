@@ -100,7 +100,7 @@ public class ProgressCollector
 			{
 				values[i] = client.getVarbitValue(varbits[i]);
 			}
-			diaries.addProperty(diary.getKey(), ProgressRules.diaryTier(values));
+			diaries.addProperty(diary.getKey(), ProgressRules.diaryTier(values, GameIds.diaryDoneValues(diary.getKey())));
 		}
 		return diaries;
 	}
