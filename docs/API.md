@@ -213,9 +213,13 @@ item chat message; RuneLite's Loot Tracker plugin). Stored as the account's `set
 onboarding, never applied. Partial kinds are merged into the stored snapshot: a counters-only
 `collectionLog` keeps the stored item list, a single item joins it, a `complete` list replaces it;
 `clues` tiers merge.
-Always stored as the account's latest snapshot. Members: merged upwards-only into the ranking
-record, rescored, category marked source `plugin`. Response `data`:
+Always stored as the account's latest snapshot. Members: applied to the ranking record, rescored,
+category marked source `plugin`. Counters (skills, clues, collection log) merge upwards only;
+`diaries` and the `combatAchievements` tier are written as read, lowering a tier or removing a
+location the game says is not done. Karamja diaries from clients before 1.2.1 are ignored.
+Response `data`:
 `{ member, applied: [categories, plus "account_type" when the mode changed], newCollectionLogItems, points, rank }`.
 `newCollectionLogItems` names the scored collection log items (notable items and pets) the upload
 added to the member's record; empty when nothing was new. Members only; absent for a prospect.
-Plugin-owned categories (synced ≤ 30 days) are not overwritten by the Temple/WikiSync refresh.
+Plugin-owned categories (synced ≤ 30 days) are not overwritten by the Temple/WikiSync refresh; for
+diaries and the CA tier WikiSync is not used at all, and the calculator shows the record.
