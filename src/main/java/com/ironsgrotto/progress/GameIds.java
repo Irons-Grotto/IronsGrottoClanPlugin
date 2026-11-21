@@ -48,7 +48,8 @@ public final class GameIds
 		DIARIES.put("Falador", new int[] {VarbitID.FALADOR_DIARY_EASY_COMPLETE, VarbitID.FALADOR_DIARY_MEDIUM_COMPLETE, VarbitID.FALADOR_DIARY_HARD_COMPLETE, VarbitID.FALADOR_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Fremennik", new int[] {VarbitID.FREMENNIK_DIARY_EASY_COMPLETE, VarbitID.FREMENNIK_DIARY_MEDIUM_COMPLETE, VarbitID.FREMENNIK_DIARY_HARD_COMPLETE, VarbitID.FREMENNIK_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Kandarin", new int[] {VarbitID.KANDARIN_DIARY_EASY_COMPLETE, VarbitID.KANDARIN_DIARY_MEDIUM_COMPLETE, VarbitID.KANDARIN_DIARY_HARD_COMPLETE, VarbitID.KANDARIN_DIARY_ELITE_COMPLETE});
-		// Karamja predates the *_COMPLETE varbits for its first three tiers.
+		// Karamja predates the *_COMPLETE varbits for its first three tiers;
+		// see DIARY_DONE_VALUES.
 		DIARIES.put("Karamja", new int[] {VarbitID.ATJUN_EASY_DONE, VarbitID.ATJUN_MED_DONE, VarbitID.ATJUN_HARD_DONE, VarbitID.KARAMJA_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Kourend & Kebos", new int[] {VarbitID.KOUREND_DIARY_EASY_COMPLETE, VarbitID.KOUREND_DIARY_MEDIUM_COMPLETE, VarbitID.KOUREND_DIARY_HARD_COMPLETE, VarbitID.KOUREND_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Lumbridge & Draynor", new int[] {VarbitID.LUMBRIDGE_DIARY_EASY_COMPLETE, VarbitID.LUMBRIDGE_DIARY_MEDIUM_COMPLETE, VarbitID.LUMBRIDGE_DIARY_HARD_COMPLETE, VarbitID.LUMBRIDGE_DIARY_ELITE_COMPLETE});
@@ -56,6 +57,29 @@ public final class GameIds
 		DIARIES.put("Varrock", new int[] {VarbitID.VARROCK_DIARY_EASY_COMPLETE, VarbitID.VARROCK_DIARY_MEDIUM_COMPLETE, VarbitID.VARROCK_DIARY_HARD_COMPLETE, VarbitID.VARROCK_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Western Provinces", new int[] {VarbitID.WESTERN_DIARY_EASY_COMPLETE, VarbitID.WESTERN_DIARY_MEDIUM_COMPLETE, VarbitID.WESTERN_DIARY_HARD_COMPLETE, VarbitID.WESTERN_DIARY_ELITE_COMPLETE});
 		DIARIES.put("Wilderness", new int[] {VarbitID.WILDERNESS_DIARY_EASY_COMPLETE, VarbitID.WILDERNESS_DIARY_MEDIUM_COMPLETE, VarbitID.WILDERNESS_DIARY_HARD_COMPLETE, VarbitID.WILDERNESS_DIARY_ELITE_COMPLETE});
+	}
+
+	/** The value a diary varbit holds once its tier is done: 1 for all but Karamja's. */
+	private static final int[] DIARY_DONE = {1, 1, 1, 1};
+
+	/**
+	 * Diaries whose varbits hold something other than 1 when done. Karamja's
+	 * Easy, Medium and Hard read 1 once the tier is started and 2 when it is
+	 * finished: the game's own area_task_complete script checks for 2.
+	 * Releases before 1.2.1 counted any non-zero value, so a started tier was
+	 * reported as done.
+	 */
+	private static final Map<String, int[]> DIARY_DONE_VALUES = new LinkedHashMap<>();
+
+	static
+	{
+		DIARY_DONE_VALUES.put("Karamja", new int[] {2, 2, 2, 1});
+	}
+
+	/** The done value of each tier's varbit for a location, in DIARIES order. */
+	public static int[] diaryDoneValues(String location)
+	{
+		return DIARY_DONE_VALUES.getOrDefault(location, DIARY_DONE);
 	}
 
 	/** Diary tier names, in the order of the varbit arrays above. */

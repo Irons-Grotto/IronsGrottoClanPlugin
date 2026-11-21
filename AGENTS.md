@@ -90,6 +90,10 @@ Checked against the client jar and a real `~/.runelite/profiles2`.
   `CollectionLogButton` checks each tick while the log is open and puts itself back.
 - Prefer `net.runelite.api.gameval.*` (`VarbitID`, `VarPlayerID`, `InterfaceID`) over the
   deprecated `Varbits`/`VarPlayer`. Game ids RuneLite doesn't name go in `progress/GameIds.java`.
+- A varbit named `*_DONE` or `*_COMPLETE` is not always 0/1. Karamja's Easy/Medium/Hard
+  (`ATJUN_*_DONE`) read 1 once started and 2 when done; up to 1.2.0 the plugin counted 1 as done
+  and over-credited a third of its users. Check how the game reads a varbit before trusting
+  it: the client scripts (github.com/runelite/cs2-scripts, e.g. `[proc,area_task_complete]`).
 - To confirm a constant or signature, read the jar Gradle resolved, don't guess:
   `unzip -o ~/.gradle/caches/.../runelite-api-<v>.jar 'net/runelite/api/gameval/VarbitID.class'
   && javap -constants ... | grep NAME`. For behaviour, `javap -c -p` on the client class

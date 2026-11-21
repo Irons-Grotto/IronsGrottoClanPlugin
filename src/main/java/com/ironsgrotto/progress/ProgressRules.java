@@ -36,13 +36,16 @@ public final class ProgressRules
 		return state == GameState.HOPPING || state == GameState.CONNECTION_LOST || state == GameState.LOGGING_IN;
 	}
 
-	/** Highest diary tier whose completion varbit is set, or "None". */
-	public static String diaryTier(int[] completionValues)
+	/**
+	 * Highest diary tier whose varbit has reached its done value, or "None".
+	 * A value below it (Karamja's 1, "started") is not done.
+	 */
+	public static String diaryTier(int[] values, int[] doneValues)
 	{
 		String tier = "None";
-		for (int i = 0; i < completionValues.length && i < GameIds.DIARY_TIERS.length; i++)
+		for (int i = 0; i < values.length && i < doneValues.length && i < GameIds.DIARY_TIERS.length; i++)
 		{
-			if (completionValues[i] > 0)
+			if (values[i] >= doneValues[i])
 			{
 				tier = GameIds.DIARY_TIERS[i];
 			}
